@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// const bookRoutes = require('./routes/bookRoutes');
+const bookRoutes = require('./routes/bookRoutes');
 // const userRoutes = require('./routes/userRoutes');
 // const studyRoomRoutes = require('./routes/studyRoomRoutes');
 
@@ -18,7 +18,7 @@ mongoose
   .then(() => console.log('MongoDB connected'))
   .catch((error) => console.log('MongoDB connection failed:', error));
 
-// app.use('/api/books', bookRoutes);
+app.use('/api/books', bookRoutes);
 // app.use('/api/users', userRoutes);
 // app.use('/api/studyrooms', studyRoomRoutes);
 
