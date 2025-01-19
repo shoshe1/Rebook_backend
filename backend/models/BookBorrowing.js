@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const bookBorrowingSchema = new mongoose.Schema({
     borrowing_id: { type: Number, required: true, unique: true },
     book_id: { type: Number, required: true, ref: 'Book' },
