@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const studyRoomSchema = new mongoose.Schema({
     room_id: { type: Number, required: true, unique: true },
     capacity: { type: Number, required: true },
