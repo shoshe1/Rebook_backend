@@ -22,14 +22,14 @@ router.post('/', bookController.createBook);
 router.put('/:book_id', bookController.updateBook);
 router.delete('/:book_id', bookController.deleteBook);
 //borrowing
-router.post('/borrow', bookController.borrowBook);
-router.put('/return', bookController.returnBook);
-router.get('/donations', bookController.getalldonations);
-router.get('/borrowings', bookController.getallBorrowings);
-//donations
-router.post('/donate', bookController.createDonation);
-router.put('/updateDonationStatus', bookController.updateDonationStatus);
-router.delete('/donate/:donation_id', bookController.deleteDonation);
+// router.post('/borrow', bookController.borrowBook);
+// router.put('/return', bookController.returnBook);
+// router.get('/donations', bookController.getalldonations);
+// router.get('/borrowings', bookController.getallBorrowings);
+// //donations
+// router.post('/donate', bookController.createDonation);
+// router.put('/updateDonationStatus', bookController.updateDonationStatus);
+// router.delete('/donate/:donation_id', bookController.deleteDonation);
 
 //user
 module.exports = router;
