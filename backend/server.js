@@ -1,7 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const helmet = require('helmet');
 const dotenv = require('dotenv');
 
 const bookRoutes = require('./routes/bookRoutes');
@@ -11,24 +10,7 @@ const userRoutes = require('./routes/userRoutes');
 dotenv.config();
 
 const app = express();
-
-app.use(
-  helmet({
-      contentSecurityPolicy: {
-          directives: {
-              defaultSrc: ["'self'"],
-              connectSrc: ["'self'", 'https://rebook-backend-ldmy.onrender.com'], // Allow API calls from your frontend
-              scriptSrc: ["'self'", "'unsafe-inline'"],
-              styleSrc: ["'self'", "'unsafe-inline'"],
-              imgSrc: ["'self'", "data:"],
-          },
-      },
-  })
-);
-app.use(cors({
-  origin: 'https://project-client-side.onrender.com', // Replace with your frontend Render URL
-}));
-// app.use(cors());
+app.use(cors());
 app.use(express.json());
 
 mongoose
