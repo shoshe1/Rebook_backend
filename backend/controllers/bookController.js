@@ -39,3 +39,14 @@ exports.createBook = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+exports.deleteBook = async (req, res) => {
+  try {
+    const bookId = req.params.id;
+    await Book.findByIdAndRemove(bookId);
+    res.status(204).json({ message: 'Book deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
