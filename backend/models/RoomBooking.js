@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const roomBookingSchema = new mongoose.Schema({
     booking_id: { type: Number, required: true, unique: true },
     room_id: { type: Number, required: true, ref: 'StudyRoom' },
