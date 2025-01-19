@@ -29,3 +29,13 @@ exports.getBookById = async (req, res) => {
   }
 };
 
+
+exports.createBook = async (req, res) => {
+  try {
+    const book = new Book(req.body);
+    await book.save();
+    res.status(201).json(book);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
