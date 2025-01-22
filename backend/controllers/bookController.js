@@ -179,4 +179,17 @@ exports.getAllDonations = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}
+};
+
+exports.deleteDonation = async (req, res) => {
+  try {
+    const donationId = req.params.donation_id;
+    const deletedDonation = await BookDonation.findOneAndDelete({ donation_id: donationId }); 
+    if (!deletedDonation) {
+      return res.status(404).json({ error: 'Donation not found' });
+    }
+    res.status(200).json({ message: 'Donation deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
