@@ -170,3 +170,13 @@ exports.createDonation = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+exports.getAllDonations = async (req, res) => {
+  try {
+    const donations = await BookDonation.find();
+    res.status(200).json(donations);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
