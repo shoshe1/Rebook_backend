@@ -149,3 +149,24 @@ exports.getAllBorrowings = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+exports.createDonation = async (req, res) => {
+  try{
+    const { user_id, book_title, book_author, donation_date, book_condition, book_photo } = req.body;
+    if (!user_id || !book_title || !book_author || !donation_date || !book_condition || !book_photo) {
+      res.status(400).json({ error: 'user_id, book_title, book_author, donation_date, book_condition and book_photo are required fields' });
+      return;
+    }
+    const donation = new BookDonation({ user_id, book_title, book_author, donation_date : donation_date || new Date(), book_condition, book_photo, donation_id: Math.floor(Math.random() * 100000) , donation_status:'pending' });
+
+    await donation.save();
+
+    res.status(201).json({ message: 'Book donation created successfully', donation });
+
+
+  }
+  catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
