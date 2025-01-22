@@ -56,3 +56,35 @@ exports.getUsers = async (req, res) => {
         }
     };
 
+    exports.log_in = async (req, res) => {
+        try {
+            const { username, password } = req.body;
+    
+            if (!username || !password) {
+                return res.status(400).json({ error: 'Missing required fields' });
+            }
+    
+            const user = await User.findOne({ username });
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+    
+            const validPassword = await bcrypt.compare(password, user.password);
+            if (!validPassword) {
+                return res.status(400).json({ error: 'Invalid password' });
+            }
+    
+            res.status(200).json({ message: 'Login successful' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    };
+
+
+    exports.log_out = async (req, res) => {
+        try {
+            res.status(200).json({ message: 'Logout successful' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    };
