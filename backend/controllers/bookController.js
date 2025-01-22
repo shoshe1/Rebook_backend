@@ -139,3 +139,13 @@ exports.returnBook = async (req, res) => {
     }
   
 };
+
+
+exports.getAllBorrowings = async (req, res) => {
+  try {
+    const borrowings = await BookBorrowing.find();
+    res.status(200).json(borrowings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
