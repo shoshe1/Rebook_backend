@@ -106,3 +106,36 @@ exports.borrowBook = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.returnBook = async (req, res) => {
+  try {
+    const{borrowing_id}=req.params;
+    const return_date = new Date();
+    const borrowing = await BookBorrowing.findOne({ borrowing_id });
+    if (!borrowing) {
+      res.status(404).json({ error: 'Borrowing not found' });
+      return;
+    }
+    if (borrowing.borrowing_status === 'returned') {
+      res.status(400).json({ error: 'Book is already returned' });
+      return;
+    }
+    borrowing.return_date = return_date;
+    borrowing.borrowing_status = 'returned';
+    await borrowing.save();
+    const book = await Book.findOne({ book_id: borrowing.book_id });
+    if (!book) {
+      res.status(404).json({ error: 'Book not found' });
+      return;
+    }
+
+    book.available_copies++;
+    await book.save();
+    res.status(200).json({ message: 'Book returned successfully', borrowing });
+  }
+
+    catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  
+};
