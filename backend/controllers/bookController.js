@@ -44,30 +44,41 @@ const storage = multer.diskStorage({
 const upload = multer({storage: storage});
 
 exports.createBook = [
-  upload.single('book_photo'), // Middleware to handle file upload
+  upload.single('book_photo'), 
   async (req, res) => {
     try {
-      const { book_id, title, author, publication_date, genre, category, available_copies, total_copies } = req.body;
+      const { book_id, title, author, publication_date, category, available_copies, total_copies } = req.body;
       const book_photo = req.file ? req.file.filename : null;
 
-      if (!book_id || !title || !author || !publication_date || !genre || !category || !available_copies || !total_copies || !book_photo) {
+      if (!book_id || !title || !author || !publication_date || !category || !available_copies || !total_copies ) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      const book = new Book({
-        book_id,
-        title,
-        author,
-        publication_date,
-        genre,
-        category,
-        available_copies,
-        total_copies,
-        book_photo: `/uploads/${book_photo}` // Store the URL to access the image
-      });
+      let book = await Book.findOne({ title, author, publication_date, category });
 
-      await book.save();
-      res.status(201).json(book);
+      if (book) {
+
+        book.available_copies += parseInt(available_copies);
+        book.total_copies += parseInt(total_copies);
+        await book.save();
+        return res.status(200).json({ message: 'Book already exists. Updated available copies.', book });
+      } else {
+
+        book = new Book({
+          book_id,
+          title,
+          author,
+          publication_date,
+          genre,
+          category,
+          available_copies,
+          total_copies,
+          book_photo: `/uploads/${book_photo}` 
+        });
+
+        await book.save();
+        return res.status(201).json(book);
+      }
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
