@@ -1,4 +1,6 @@
 const Book = require('../models/Book');
+const multer = require('multer');
+const path = require('path');
 
 const BookBorrowing = require('../models/BookBorrowing'); 
 const user = require ('../models/User')
@@ -17,6 +19,7 @@ exports.getBooks = async (req, res) => {
 };
 
 
+
 exports.getBookById = async (req, res) => {
   try {
     const bookId = req.params.book_id; // Use book_id from the route
@@ -30,19 +33,46 @@ exports.getBookById = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // File uploads will be stored in the 'uploads' directory
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+  },
+});
+const upload = multer({storage: storage});
 
+exports.createBook = [
+  upload.single('book_photo'), // Middleware to handle file upload
+  async (req, res) => {
+    try {
+      const { book_id, title, author, publication_date, genre, category, available_copies, total_copies } = req.body;
+      const book_photo = req.file ? req.file.filename : null;
 
-exports.createBook = async (req, res) => {
-  try {
-    const book = new Book(req.body);
-    await book.save();
-    res.status(201).json(book);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+      if (!book_id || !title || !author || !publication_date || !genre || !category || !available_copies || !total_copies || !book_photo) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const book = new Book({
+        book_id,
+        title,
+        author,
+        publication_date,
+        genre,
+        category,
+        available_copies,
+        total_copies,
+        book_photo: `/uploads/${book_photo}` // Store the URL to access the image
+      });
+
+      await book.save();
+      res.status(201).json(book);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   }
-};
-
-
+];
 exports.deleteBook = async (req, res) => {
   try {
     
@@ -189,6 +219,88 @@ exports.deleteDonation = async (req, res) => {
       return res.status(404).json({ error: 'Donation not found' });
     }
     res.status(200).json({ message: 'Donation deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////
+
+
+// // Get all books including approved donated books
+// exports.getAllBooksIncludingDonations = async (req, res) => {
+//   try {
+//     const books = await Book.find();
+//     const approvedDonations = await BookDonation.find({ donation_status: 'approved' });
+//     res.status(200).json({ books, approvedDonations });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// // Get all books that a user has
+// exports.getUserBooks = async (req, res) => {
+//   try {
+//     const userId = req.params.user_id;
+//     const userBooks = await Book.find({ user_id: userId });
+//     res.status(200).json(userBooks);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// // Get all donated books for a user
+// exports.getUserDonations = async (req, res) => {
+//   try {
+//     const userId = req.params.user_id;
+//     const userDonations = await BookDonation.find({ user_id: userId });
+//     res.status(200).json(userDonations);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// // Get all borrowed books for a user
+// exports.getUserBorrowings = async (req, res) => {
+//   try {
+//     const userId = req.params.user_id;
+//     const userBorrowings = await BookBorrowing.find({ user_id: userId });
+//     res.status(200).json(userBorrowings);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// // Existing methods...
+
+// exports.deleteDonation = async (req, res) => {
+//   try {
+//     const donationId = req.params.donation_id;
+//     const deletedDonation = await BookDonation.findOneAndDelete({ donation_id: donationId });
+//     if (!deletedDonation) {
+//       return res.status(404).json({ error: 'Donation not found' });
+//     }
+//     res.status(200).json({ message: 'Donation deleted successfully' });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+// /////
+
+// // New routes
+// router.get('/all-books-including-donations', bookController.getAllBooksIncludingDonations);
+// router.get('/user-books/:user_id', bookController.getUserBooks);
+// router.get('/user-donations/:user_id', bookController.getUserDonations);
+// router.get('/user-borrowings/:user_id', bookController.getUserBorrowings);
+exports.getimagebyid = async (req, res) => {
+  try {
+    const bookId = req.params.book_id;
+    const book = await Book.findOne({ book_id: bookId });
+    if (!book) {
+      res.status(404).json({ error: 'Book not found' });
+      return;
+    }
+    res.status(200).json({ imageUrl: `http://localhost:5000${book.book_photo}` });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
