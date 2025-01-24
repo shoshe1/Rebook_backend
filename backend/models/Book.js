@@ -6,10 +6,10 @@ const bookSchema = new mongoose.Schema({
     title: { type: String, required: true },
     author: { type: String, required: true },
     category: { type: String, required: true },
-    publication_year: { type: Number },
+    publication_year: { type: Number  , },
     book_status: { type: String, enum: ['available', 'borrowed'], default: 'available' },
-    total_copies: { type: Number, required: true },
-    available_copies: { type: Number, required: true },
+    total_copies: { type: Number},
+    available_copies: { type: Number },
   });
   
   module.exports = mongoose.model('Book', bookSchema);
