@@ -254,7 +254,14 @@ exports.deleteDonation = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
+exports.getTotalBooks = async (req, res) => {
+  try {
+    const totalBooks = await Book.countDocuments();
+    res.status(200).json({ totalBooks });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 ////////////////////////////////////////////////////////////////////////////
 
 
