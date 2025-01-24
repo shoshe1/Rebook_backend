@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bookController = require('../controllers/bookController');
-
+const {deleteBook} = require('../controllers/bookController');
 //donations
 router.get('/donations', bookController.getAllDonations);
 router.delete('/donate/:donation_id', bookController.deleteDonation);
