@@ -50,43 +50,37 @@ exports.createBook = [
       const { title, author, publication_date, category } = req.body;
       const book_photo = req.file ? req.file.filename : null;
 
-      // Check for required fields
       if (!title || !author || !publication_date || !category) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      // Find a book with the same title and author
-      let book = await Book.findOne({ title, author });
+      let book = await Book.findOne({ title, author, publication_date, category });
 
       if (book) {
-        // Update total_copies and available_copies
-        book.total_copies += 1;
         book.available_copies += 1;
+        book.total_copies += 1;
         await book.save();
         return res.status(200).json({ message: 'Book already exists. Updated available copies.', book });
       } else {
-        // Generate new book_id based on the total number of books in the database
         const totalBooks = await Book.countDocuments();
-        const book_id = totalBooks + 1;
+        const newBookId = totalBooks + 1;
 
-        // Create a new book entry
         book = new Book({
-          book_id,
+          book_id: newBookId, // Automatically generated book_id
           title,
           author,
           publication_date,
           category,
-          total_copies: 1, // New book, so set initial total copies to 1
-          available_copies: 1, // New book, so set initial available copies to 1
-          book_photo: book_photo ? `/uploads/${book_photo}` : null, // Corrected syntax
+          available_copies: 1, 
+          total_copies: 1,
+          book_photo: book_photo ? `/uploads/${book_photo}` : null,
         });
 
         await book.save();
-        return res.status(201).json({ message: 'New book added successfully.', book });
+        return res.status(201).json({ message: 'Book added successfully!', book });
       }
     } catch (error) {
-      console.error(error);
-      return res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message });
     }
   },
 ];
