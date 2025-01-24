@@ -6,7 +6,8 @@ const roomBookingSchema = new mongoose.Schema({
     booking_date: { type: Date, default: Date.now },
     start_time: { type: Date, required: true },
     end_time: { type: Date, required: true },
-    booking_status: { type: String, enum: ['confirmed', 'cancelled'], default: 'confirmed' },
+    room_status :{ type: String, enum: ['available', 'booked'], default: 'available' },
+    booking_status: { type: String, enum: ['confirmed', 'cancelled'] },
   });
   
   module.exports = mongoose.model('RoomBooking', roomBookingSchema);
