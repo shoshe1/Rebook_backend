@@ -41,48 +41,54 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
   },
 });
-const upload = multer({storage: storage});
+const upload = multer({ storage: storage });
 
 exports.createBook = [
-  upload.single('book_photo'), 
+  upload.single('book_photo'),
   async (req, res) => {
     try {
-      const { book_id, title, author, publication_date, category, available_copies, total_copies } = req.body;
+      const { title, author, publication_date, category } = req.body;
       const book_photo = req.file ? req.file.filename : null;
 
-      if (!book_id || !title || !author || !publication_date || !category || !available_copies || !total_copies ) {
+      // Check for required fields
+      if (!title || !author || !publication_date || !category) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      let book = await Book.findOne({ title, author, publication_date, category });
+      // Find a book with the same title and author
+      let book = await Book.findOne({ title, author });
 
       if (book) {
-
-        book.available_copies += parseInt(available_copies);
-        book.total_copies += parseInt(total_copies);
+        // Update total_copies and available_copies
+        book.total_copies += 1;
+        book.available_copies += 1;
         await book.save();
         return res.status(200).json({ message: 'Book already exists. Updated available copies.', book });
       } else {
+        // Generate new book_id based on the total number of books in the database
+        const totalBooks = await Book.countDocuments();
+        const book_id = totalBooks + 1;
 
+        // Create a new book entry
         book = new Book({
           book_id,
           title,
           author,
           publication_date,
-          genre,
           category,
-          available_copies,
-          total_copies,
-          book_photo: `/uploads/${book_photo}` 
+          total_copies: 1, // New book, so set initial total copies to 1
+          available_copies: 1, // New book, so set initial available copies to 1
+          book_photo: book_photo ? `/uploads/${book_photo}` : null, // Corrected syntax
         });
 
         await book.save();
-        return res.status(201).json(book);
+        return res.status(201).json({ message: 'New book added successfully.', book });
       }
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      return res.status(500).json({ error: error.message });
     }
-  }
+  },
 ];
 exports.deleteBook = async (req, res) => {
   try {
