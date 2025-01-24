@@ -103,3 +103,33 @@ exports.getUsers = async (req, res) => {
             res.status(500).json({ error: error.message });
         }
     };
+
+    exports.user_donations_history = async (req, res) => {
+        try {
+            const userId = req.params.user_id;
+            const user = await User.findOne({ user_id: userId });
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            const donations = await Donation.find({ user_id: userId });
+            res.status(200).json(donations);
+        }
+        catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    };
+
+    exports.user_borrowing_history = async (req, res) => {
+        try {
+            const userId = req.params.user_id;
+            const user      = await User.findOne({ user_id: userId });
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            const borrowings = await BookBorrowing.find({ user_id: userId });
+            res.status(200).json(borrowings);
+        }
+        catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    };
