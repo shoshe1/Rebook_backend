@@ -41,49 +41,69 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
   },
 });
-const upload = multer({ storage: storage });
+const upload = multer({storage: storage});
+
+
+
+
 
 exports.createBook = [
-  upload.single('book_photo'),
+  upload.single('book_photo'), // Middleware to handle file upload
   async (req, res) => {
     try {
-      const { title, author, publication_date, category } = req.body;
-      const book_photo = req.file ? req.file.filename : null;
+      const { title, author, publication_year, category } = req.body;
 
-      if (!title || !author || !publication_date || !category) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
+      // Set default photo if no photo uploaded
+      const book_photo = req.file 
+        ? `/uploads/${req.file.filename}` 
+        : '/uploads/no_img.jpeg'; // Default book cover path
 
-      let book = await Book.findOne({ title, author, publication_date, category });
+      // Find existing book with matching details
+      let book = await Book.findOne({ 
+        title, 
+        author, 
+        publication_year, 
+        category 
+      });
 
       if (book) {
-        book.available_copies += 1;
+        // If book exists, update copies and photo
         book.total_copies += 1;
+        book.available_copies += 1;
+        book.book_photo = book_photo;
         await book.save();
-        return res.status(200).json({ message: 'Book already exists. Updated available copies.', book });
+        return res.status(200).json({ 
+          message: 'Book already exists. Updated available copies.', 
+          book 
+        });
       } else {
+        // If book doesn't exist, create new book
         const totalBooks = await Book.countDocuments();
         const newBookId = totalBooks + 1;
 
         book = new Book({
-          book_id: newBookId, // Automatically generated book_id
+          book_id: newBookId,
           title,
           author,
-          publication_date,
+          publication_year,
           category,
-          available_copies: 1, 
           total_copies: 1,
-          book_photo: book_photo ? `/uploads/${book_photo}` : null,
+          available_copies: 1,
+          book_photo: book_photo
         });
 
         await book.save();
-        return res.status(201).json({ message: 'Book added successfully!', book });
+        return res.status(201).json({ 
+          message: 'New book added successfully!', 
+          book 
+        });
       }
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  },
+  }
 ];
+
 exports.deleteBook = async (req, res) => {
   try {
     
