@@ -10,6 +10,6 @@ router.post('/login', user_controller.log_in);
 router.post('/logout', user_controller.log_out);
 router.delete('/:user_id', user_controller.deleteUser);
 router.get('/:user_id/donations',user_controller.user_donations_history);
-router.get('/:user_id/borrowings',ler.user_borrowing_history);
+router.get('/:user_id/borrowings',user_borrowing_history);
 
 module.exports = router
