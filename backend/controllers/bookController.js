@@ -106,35 +106,46 @@ exports.createBook = [
 
 exports.deleteBook = async (req, res) => {
   try {
-    
-    const bookId = req.params.book_id; 
-    const deletedBook = await Book.findByIdAndDelete(bookId);
+    const bookId = req.params.book_id;
+
+    // Check if bookId is a valid number
+    if (isNaN(bookId)) {
+      return res.status(400).json({ error: 'Invalid book ID' });
+    }
+
+    const deletedBook = await Book.findOneAndDelete({ book_id: bookId });
     if (!deletedBook) {
       return res.status(404).json({ error: 'Book not found' });
     }
-    res.status(204).json({ message: 'Book deleted successfully' });
-  }catch (error) {
-    res.status(500).json({ error: error.message });
-  }}
-;
 
-
-exports.updateBook = async (req, res) => {
-  try {
-    const bookId = req.params.id;
-    const book = await Book.findById(bookId);
-    if (!book) {
-      res.status(404).json({ error: 'Book not found' });
-      return;
-    }
-    Object.assign(book, req.body);
-    await book.save();
-    res.status(200).json(book);
+    res.status(200).json({ message: 'Book deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
+
+
+exports.updateBook = async (req, res) => {
+  try {
+    const bookId = req.params.book_id;
+
+    // Check if bookId is a valid number
+    if (isNaN(bookId)) {
+      return res.status(400).json({ error: 'Invalid book ID' });
+    }
+
+    const updatedBook = await Book.findOneAndUpdate({ book_id: bookId }, req.body, { new: true });
+
+    if (!updatedBook) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    res.status(200).json(updatedBook);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 exports.borrowBook = async (req, res) => {
   try {
     const { book_id, user_id, due_date } = req.body;
