@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const book = require('./Book');
 const bookDonationSchema = new mongoose.Schema({
     donation_id: { type: Number, required: true, unique: true },
     user_id: { type: Number, required: true, ref: 'User' },
