@@ -23,3 +23,14 @@ exports.getempytRooms = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getoccupiedRooms = async (req, res) => {
+    try {
+
+        const occupiedRooms = await studyRoom.find({ status: 'booked' });
+        res.status(200).json(occupiedRooms);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
