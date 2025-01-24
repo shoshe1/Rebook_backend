@@ -13,3 +13,13 @@ exports.getAllStudyRooms = async (req, res) => {
 
 
 };
+exports.getempytRooms = async (req, res) => {
+    try {
+
+        const emptyRooms = await studyRoom.find({ status: 'available' });
+        res.status(200).json(emptyRooms);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
