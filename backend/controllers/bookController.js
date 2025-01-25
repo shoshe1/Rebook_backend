@@ -22,14 +22,29 @@ exports.getBooks = async (req, res) => {
 
 exports.getBookById = async (req, res) => {
   try {
-    const bookId = req.params.book_id; // Use book_id from the route
-    const book = await Book.findOne({ book_id: bookId }); // Find by book_id field
-    if (!book) {
-      res.status(404).json({ error: 'Book not found' });
-      return;
+    console.log('Received params:', req.params);
+    console.log('book_id type:', typeof req.params.book_id);
+    
+    const bookId = parseInt(req.params.book_id, 10);
+    
+    console.log('Parsed bookId:', bookId);
+    console.log('Parsed bookId type:', typeof bookId);
+
+    if (isNaN(bookId)) {
+      return res.status(400).json({ 
+        error: 'Invalid book ID', 
+        receivedId: req.params.book_id 
+      });
     }
+
+    const book = await Book.findOne({ book_id: bookId }); 
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+    
     res.status(200).json(book);
   } catch (error) {
+    console.error('Book fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -152,6 +167,10 @@ exports.borrowBook = async (req, res) => {
     if (!book_id || !user_id || !due_date) {
       res.status(400).json({ error: 'book_id, user_id and due_date are required fields' });
       return;
+    }
+    const user = await User.findOne({ user_id });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found. Please create an account first.' });
     }
     const book = await Book.findOne({ book_id });
     if (!book) {

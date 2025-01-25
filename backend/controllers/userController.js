@@ -119,7 +119,7 @@ exports.getUsers = async (req, res) => {
         }
     };
 
-    exports.user_borrowing_history = async (req, res) => {
+exports.user_borrowing_history = async (req, res) => {
         try {
             const userId = req.params.user_id;
             const user      = await User.findOne({ user_id: userId });
