@@ -14,40 +14,34 @@ const studyRoomRoutes = require('./routes/studtRoomRoutes');
 dotenv.config();
 
 const app = express();
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://project-client-side-web.onrender.com');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  next();
+});
 
-// Security Headers with Helmet
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        connectSrc: [
-          "'self'",
-          'https://rebook-backend-ldmy.onrender.com', // Backend API URL
-          'https://project-client-side-web.onrender.com', // Frontend URL
-        ],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
-      },
-    },
-  })
-);
-
-// CORS Configuration
+// Apply CORS middleware
 app.use(
   cors({
     origin: [
       'http://localhost:3000', // Local React development
       'https://project-client-side-web.onrender.com', // Production React app
     ],
-    credentials: true, // Allow cookies or auth headers
+    credentials: true, // Allow credentials (cookies, auth headers)
   })
 );
 
-// Middleware for parsing JSON
+// Apply security headers with Helmet (CSP temporarily disabled for debugging)
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable CSP temporarily for debugging
+  })
+);
+
+// Middleware for parsing JSON and serving static files
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB Connection
 mongoose
@@ -55,11 +49,11 @@ mongoose
   .then(() => console.log('MongoDB connected'))
   .catch((error) => console.log('MongoDB connection failed:', error));
 
-// API Routes
-app.use('/api/books', bookRoutes); // Routes for books
-app.use('/api/users', userRoutes); // Routes for users
-app.use('/api/studyrooms',studyRoomRoutes); // Uncomment if needed
+// API Routes (ensure these come after the middleware)
+app.use('/api/books', bookRoutes); 
+app.use('/api/users', userRoutes); 
+app.use('/api/studyrooms', studyRoomRoutes);
 
-// Start the server
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

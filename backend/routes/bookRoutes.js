@@ -21,6 +21,17 @@ router.put('/:book_id', bookController.updateBook);
 router.delete('/:book_id', bookController.deleteBook);
 router.get('/image/:book_id', bookController.getimagebyid);
 router.get('/get_total_books', bookController.getTotalBooks);
+const cors = require('cors');
+// Enable CORS specifically for this route
+router.use(
+  cors({
+    origin: 'https://project-client-side-web.onrender.com',
+    credentials: true,
+  })
+);
 
+router.get('/', (req, res) => {
+  res.json({ message: 'Books data' });
+});
 //user
 module.exports = router;
