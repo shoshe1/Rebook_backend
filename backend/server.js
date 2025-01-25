@@ -25,7 +25,7 @@ app.use(
         connectSrc: [
           "'self'",
           'https://rebook-backend-ldmy.onrender.com', // Backend API URL
-          'https://project-client-side.onrender.com', // Frontend URL
+          'https://project-client-side-web.onrender.com', // Frontend URL
         ],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
@@ -35,18 +35,17 @@ app.use(
   })
 );
 
-// Enable CORS for all origins
-app.use(cors());
-
-// Alternatively, allow specific origins only
-app.use(cors({
-  origin: 'https://project-client-side-web.onrender.com'
-}));
-
-app.get('/api/books', (req, res) => {
-  res.json({ message: 'Books data' });
-});
-
+// CORS Configuration
+app.use(
+  cors({
+    origin: [
+      'http://localhost:3000', // Local React development
+      'http://localhost:5000', // Local Electron app
+      'https://project-client-side-web.onrender.com', // Production React app
+    ],
+    credentials: true, // Allow cookies or authorization headers
+  })
+);
 
 // Middleware for parsing JSON
 app.use(express.json());
