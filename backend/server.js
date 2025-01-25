@@ -8,7 +8,7 @@ const dotenv = require('dotenv');
 // Route Imports
 const bookRoutes = require('./routes/bookRoutes');
 const userRoutes = require('./routes/userRoutes');
-// const studyRoomRoutes = require('./routes/studyRoomRoutes');
+const studyRoomRoutes = require('./routes/studtRoomRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -35,17 +35,18 @@ app.use(
   })
 );
 
-// CORS Configuration
-app.use(
-  cors({
-    origin: [
-      'http://localhost:3000', // Local React development
-      'http://localhost:5000', // Local Electron app
-      'https://project-client-side.onrender.com', // Production React app
-    ],
-    credentials: true, // Allow cookies or authorization headers
-  })
-);
+// Enable CORS for all origins
+app.use(cors());
+
+// Alternatively, allow specific origins only
+app.use(cors({
+  origin: 'https://project-client-side-web.onrender.com'
+}));
+
+app.get('/api/books', (req, res) => {
+  res.json({ message: 'Books data' });
+});
+
 
 // Middleware for parsing JSON
 app.use(express.json());
@@ -59,7 +60,7 @@ mongoose
 // API Routes
 app.use('/api/books', bookRoutes); // Routes for books
 app.use('/api/users', userRoutes); // Routes for users
-// app.use('/api/studyrooms', studyRoomRoutes); // Uncomment if needed
+app.use('/api/studyrooms',studyRoomRoutes); // Uncomment if needed
 
 // Start the server
 const PORT = process.env.PORT || 5000;
