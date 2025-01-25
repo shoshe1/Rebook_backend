@@ -40,10 +40,9 @@ app.use(
   cors({
     origin: [
       'http://localhost:3000', // Local React development
-      'http://localhost:5000', // Local Electron app
       'https://project-client-side-web.onrender.com', // Production React app
     ],
-    credentials: true, // Allow cookies or authorization headers
+    credentials: true, // Allow cookies or auth headers
   })
 );
 
