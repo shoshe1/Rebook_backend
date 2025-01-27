@@ -74,8 +74,10 @@ exports.getUsers = async (req, res) => {
                 return res.status(400).json({ error: 'Invalid password' });
             }
     
-            res.status(200).json({ message: 'Login successful' });
-        } catch (error) {
+            res.status(200).json({
+                message: 'Login successful',
+                userType: user.user_type, // Assuming user_type is a field in your User model
+            });        } catch (error) {
             res.status(500).json({ error: error.message });
         }
     };
