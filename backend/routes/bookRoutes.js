@@ -25,7 +25,7 @@ const cors = require('cors');
 // Enable CORS specifically for this route
 router.use(
   cors({
-    origin: 'https://project-client-side-web.onrender.com',
+    origin: 'https://project-client-side-rjgz.onrender.com',
     credentials: true,
   })
 );
