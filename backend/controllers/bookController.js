@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 
 const BookBorrowing = require('../models/BookBorrowing'); 
-const user = require ('../models/User')
+const User = require ('../models/User')
 const BookDonation = require('../models/BookDonation');
 const { json } = require('express');
 const { get } = require('mongoose');
@@ -168,32 +168,31 @@ exports.borrowBook = async (req, res) => {
       res.status(400).json({ error: 'book_id, user_id and due_date are required fields' });
       return;
     }
-    const user = await User.findOne({ user_id });
+    const user = await User.findOne({ user_id: parseInt(user_id, 10) });
     if (!user) {
       return res.status(404).json({ error: 'User not found. Please create an account first.' });
     }
-    const book = await Book.findOne({ book_id });
+    const book = await Book.findOne({ book_id: parseInt(book_id, 10) });
     if (!book) {
       res.status(404).json({ error: 'Book not found' });
       return;
     }
-    if (book.status === 'borrowed') {
-      res.status(400).json({ error: 'Book is already borrowed' });
-      return;
-    }
-    if(book.available_copies<=0){
+    if (book.available_copies <= 0) {
       res.status(400).json({ error: 'Book is not available' });
       return;
     }
 
-    const borrowing = new BookBorrowing({ book_id, user_id, due_date, borrowing_id: Math.floor(Math.random() * 100000) });
+    const borrowing = new BookBorrowing({
+      book_id: book._id,
+      user_id: user._id,
+      due_date,
+      borrowing_id: Math.floor(Math.random() * 100000)
+    });
     await borrowing.save();
     book.available_copies--;
     await book.save();
-    res.status(200).json
-    ({ message: 'Book borrowed successfully', borrowing });
-  }
-  catch (error) {
+    res.status(200).json({ message: 'Book borrowed successfully', borrowing });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
@@ -234,7 +233,7 @@ exports.returnBook = async (req, res) => {
 
 exports.getAllBorrowings = async (req, res) => {
   try {
-    const borrowings = await BookBorrowing.find();
+    const borrowings = await BookBorrowing.find().populate('user_id', 'username user_type user_number');
     res.status(200).json(borrowings);
   } catch (error) {
     res.status(500).json({ error: error.message });
