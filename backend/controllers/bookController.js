@@ -163,14 +163,11 @@ exports.updateBook = async (req, res) => {
 };
 exports.borrowBook = async (req, res) => {
   try {
-    const { book_id, user_id, due_date } = req.body;
-    if (!book_id || !user_id || !due_date) {
-      res.status(400).json({ error: 'book_id, user_id and due_date are required fields' });
+    const { book_id, due_date } = req.body;
+    const user_id = req.user.user_id; // Get the logged-in user's ID from the auth middleware
+    if (!book_id || !due_date) {
+      res.status(400).json({ error: 'book_id and due_date are required fields' });
       return;
-    }
-    const user = await User.findOne({ user_id: parseInt(user_id, 10) });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found. Please create an account first.' });
     }
     const book = await Book.findOne({ book_id: parseInt(book_id, 10) });
     if (!book) {
@@ -184,14 +181,13 @@ exports.borrowBook = async (req, res) => {
 
     const borrowing = new BookBorrowing({
       book_id: book._id,
-      user_id: user._id,
+      user_id: req.user._id,
       due_date,
-      borrowing_id: Math.floor(Math.random() * 100000)
+      borrowing_id: Math.floor(Math.random() * 100000),
+      borrowing_status: 'pending'
     });
     await borrowing.save();
-    book.available_copies--;
-    await book.save();
-    res.status(200).json({ message: 'Book borrowed successfully', borrowing });
+    res.status(200).json({ message: 'Borrow request sent successfully', borrowing });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -213,7 +209,7 @@ exports.returnBook = async (req, res) => {
     borrowing.return_date = return_date;
     borrowing.borrowing_status = 'returned';
     await borrowing.save();
-    const book = await Book.findOne({ book_id: borrowing.book_id });
+    const book = await Book.findOne({ _id: borrowing.book_id });
     if (!book) {
       res.status(404).json({ error: 'Book not found' });
       return;
@@ -239,6 +235,20 @@ exports.getAllBorrowings = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.getAllreturnedBorrowingsByuserId = async (req, res) => {
+ 
+    try{
+      if(!req.uesr){
+        return res.status(401).json({error:"unauthoeized.Log in please"});
+      }  
+      
+      const borrowings=await bookborrowings.find({borrowing_status:"borrowed"}).populate('book_id','title auther').populate('user_id','username');
+      res.status(200).json(borrowings);
+    }catch(error){
+      res.status(500).json({error:error.message});
+    }
+  
+}
 
 
 exports.createDonation = async (req, res) => {
@@ -368,6 +378,33 @@ exports.getimagebyid = async (req, res) => {
       return;
     }
     res.status(200).json({ imageUrl: `http://localhost:5000${book.book_photo}` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getAllReturnedBooksByUserId = async (req, res) => {
+  try {
+    const userId = req.params.user_id;
+    const user = await User.findOne({ user_id: parseInt(userId, 10) });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const borrowings = await BookBorrowing.find({ user_id: user._id, borrowing_status: 'returned' }).populate('book_id');
+    res.status(200).json(borrowings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+exports.getUserBorrowedBooks = async (req, res) => {
+  try {
+    const user_id = req.user._id; // Get the logged-in user's ID from the auth middleware
+    const borrowings = await BookBorrowing.find({ user_id })
+      .populate('book_id', 'book_id title author publication_year category book_photo')
+      .populate('user_id', 'user_id username');
+    res.status(200).json(borrowings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
