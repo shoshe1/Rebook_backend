@@ -1,28 +1,33 @@
 const express = require('express');
 const router = express.Router();
 const bookController = require('../controllers/bookController');
-const {deleteBook} = require('../controllers/bookController');
-//donations
-router.get('/donations', bookController.getAllDonations);
-router.delete('/donate/:donation_id', bookController.deleteDonation);
-router.post('/donate', bookController.createDonation);
+const auth = require('../middleware/auth');
+const verifyRole = require('../middleware/verifyRole');
 
+// Donations
+router.get('/donations', auth, verifyRole('librarian'), bookController.getAllDonations);
+router.delete('/donate/:donation_id', auth, verifyRole('librarian'), bookController.deleteDonation);
+router.post('/donate', auth, verifyRole('customer'), bookController.createDonation);
 
-//borrowing
-router.post('/borrow', bookController.borrowBook);
-router.put('/return/:borrowing_id', bookController.returnBook);
-router.get('/borrowings', bookController.getAllBorrowings);
+// Borrowing
+router.post('/borrow', auth, verifyRole('customer'), bookController.borrowBook);
+router.put('/return/:borrowing_id', auth, verifyRole('customer'), bookController.returnBook);
+router.get('/borrowings', auth, verifyRole('librarian'), bookController.getAllBorrowings);
+router.get('/my-borrowings', auth, verifyRole('customer'), bookController.getUserBorrowedBooks);
 
-//book
-router.get('/', bookController.getBooks);
-router.get('/:book_id', bookController.getBookById); // Use book_id for fetching
-router.post('/', bookController.createBook);
-router.put('/:book_id', bookController.updateBook);
-router.delete('/:book_id', bookController.deleteBook);
-router.get('/image/:book_id', bookController.getimagebyid);
-router.get('/get_total_books', bookController.getTotalBooks);
-const cors = require('cors');
+// Book
+router.get('/', auth, bookController.getBooks);
+router.get('/:book_id', auth, bookController.getBookById);
+router.post('/', auth, verifyRole('librarian'), bookController.createBook);
+router.put('/:book_id', auth, verifyRole('librarian'), bookController.updateBook);
+router.delete('/:book_id', auth, verifyRole('librarian'), bookController.deleteBook);
+router.get('/image/:book_id', auth, bookController.getimagebyid);
+router.get('/get_total_books', auth, bookController.getTotalBooks);
+router.get('/get_returned_books', auth, bookController.getAllreturnedBorrowingsByuserId);
+router.get('/returned_books/:user_id', auth, bookController.getAllReturnedBooksByUserId);
+
 // Enable CORS specifically for this route
+const cors = require('cors');
 router.use(
   cors({
     origin: 'https://project-client-side-rjgz.onrender.com',
@@ -33,5 +38,5 @@ router.use(
 router.get('/', (req, res) => {
   res.json({ message: 'Books data' });
 });
-//user
+
 module.exports = router;
