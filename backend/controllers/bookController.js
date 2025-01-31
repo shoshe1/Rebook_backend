@@ -7,6 +7,7 @@ const User = require ('../models/User')
 const BookDonation = require('../models/BookDonation');
 const { json } = require('express');
 const { get } = require('mongoose');
+const mongoose = require('mongoose');
 
 
 exports.getBooks = async (req, res) => {
@@ -161,31 +162,37 @@ exports.updateBook = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 exports.borrowBook = async (req, res) => {
   try {
     const { book_id, due_date } = req.body;
-    const user_id = req.user.user_id; // Get the logged-in user's ID from the auth middleware
+    const user_id = req.user._id; // Get the logged-in user's ID from the auth middleware
+
     if (!book_id || !due_date) {
-      res.status(400).json({ error: 'book_id and due_date are required fields' });
-      return;
-    }
-    const book = await Book.findOne({ book_id: parseInt(book_id, 10) });
-    if (!book) {
-      res.status(404).json({ error: 'Book not found' });
-      return;
-    }
-    if (book.available_copies <= 0) {
-      res.status(400).json({ error: 'Book is not available' });
-      return;
+      return res.status(400).json({ error: 'book_id and due_date are required fields' });
     }
 
+    const book = await Book.findOne({ book_id: parseInt(book_id, 10) });
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    if (book.available_copies <= 0) {
+      return res.status(400).json({ error: 'Book is not available' });
+    }
+
+    book.available_copies--;
+    await book.save();
+
     const borrowing = new BookBorrowing({
-      book_id: book._id,
-      user_id: req.user._id,
-      due_date,
-      borrowing_id: Math.floor(Math.random() * 100000),
-      borrowing_status: 'pending'
+      book_id: book._id, // Use the ObjectId of the book
+      user_id: new mongoose.Types.ObjectId(user_id), // Ensure user_id is an ObjectId
+      due_date: new Date(due_date),
+      borrowing_status: 'pending',
+      borrow_date: new Date(),
+      borrowing_id: Math.floor(Math.random() * 100000) // Generate a random borrowing_id
     });
+
     await borrowing.save();
     res.status(200).json({ message: 'Borrow request sent successfully', borrowing });
   } catch (error) {
@@ -193,6 +200,56 @@ exports.borrowBook = async (req, res) => {
   }
 };
 
+exports.acceptBorrowRequest = async (req, res) => {
+  try {
+    const { borrowing_id } = req.params;
+
+    // Find the borrowing request
+    const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) });
+    if (!borrowing) {
+      return res.status(404).json({ error: 'Borrowing request not found' });
+    }
+
+    // Check if the borrowing request is already accepted
+    if (borrowing.borrowing_status !== 'pending') {
+      return res.status(400).json({ error: 'Borrowing request is not pending' });
+    }
+
+    // Update the borrowing status to 'borrowed'
+    borrowing.borrowing_status = 'borrowed';
+    await borrowing.save();
+
+    res.status(200).json({ message: 'Borrowing request accepted successfully', borrowing });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.rejectBorrowRequest = async (req, res) => {
+  try {
+    const { borrowing_id } = req.params;
+
+    // Find the borrowing request
+    const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) });
+    if (!borrowing) {
+      return res.status(404).json({ error: 'Borrowing request not found' });
+    }
+
+    // Check if the borrowing request is already accepted
+    if (borrowing.borrowing_status !== 'pending') {
+      
+      return res.status(400).json({ error: 'Borrowing request is not pending' });
+    }
+
+    // Update the borrowing status to 'rejected'
+    borrowing.borrowing_status = 'rejected';
+    await borrowing.save();
+
+    res.status(200).json({ message: 'Borrowing request rejected successfully', borrowing });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+    }
 exports.returnBook = async (req, res) => {
   try {
     const{borrowing_id}=req.params;
@@ -231,7 +288,7 @@ exports.getAllBorrowings = async (req, res) => {
   try {
     const borrowings = await BookBorrowing.find({ borrowing_status: 'borrowed' })
       .populate('user_id', 'user_id username user_type user_number')
-      .populate('book_id', 'book_id title author ');
+      .populate('book_id', 'book_id title author');
     res.status(200).json(borrowings);
   } catch (error) {
     res.status(500).json({ error: error.message });
