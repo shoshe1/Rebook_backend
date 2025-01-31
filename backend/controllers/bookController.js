@@ -276,7 +276,7 @@ exports.createDonation = async (req, res) => {
 
 exports.getAllDonations = async (req, res) => {
   try {
-    const donations = await BookDonation.find( borrowing_status: 'donated'  );
+    const donations = await BookDonation.find( {borrowing_status : 'donated' } );
     res.status(200).json(donations);
   } catch (error) {
     res.status(500).json({ error: error.message });
