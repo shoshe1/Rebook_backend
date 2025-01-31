@@ -385,11 +385,16 @@ exports.getimagebyid = async (req, res) => {
 
 exports.getAllReturnedBooksByUserId = async (req, res) => {
   try {
-    const userId = req.params.user_id;
-    const user = await User.findOne({ user_id: parseInt(userId, 10) });
+    const userId = parseInt(req.params.user_id, 10); // Ensure user_id is a number
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const user = await User.findOne({ user_id: userId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+
     const borrowings = await BookBorrowing.find({ user_id: user._id, borrowing_status: 'returned' }).populate('book_id');
     res.status(200).json(borrowings);
   } catch (error) {
@@ -405,6 +410,16 @@ exports.getUserBorrowedBooks = async (req, res) => {
       .populate('book_id', 'book_id title author publication_year category book_photo')
       .populate('user_id', 'user_id username');
     res.status(200).json(borrowings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+exports.getUsersBorrowingRequests = async (req, res) => {
+  try {
+    const borrowRequests = await BookBorrowing.find({ borrowing_status: 'pending' })
+      .populate('book_id', 'title author')
+      .populate('user_id', 'username');
+    res.status(200).json(borrowRequests);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

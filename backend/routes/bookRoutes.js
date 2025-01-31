@@ -14,7 +14,7 @@ router.post('/borrow', auth, verifyRole('customer'), bookController.borrowBook);
 router.put('/return/:borrowing_id', auth, verifyRole('customer'), bookController.returnBook);
 router.get('/borrowings', auth, verifyRole('librarian'), bookController.getAllBorrowings);
 router.get('/my-borrowings', auth, verifyRole('customer'), bookController.getUserBorrowedBooks);
-
+router.get('/borrow-requests', auth, verifyRole('librarian'), bookController.getUsersBorrowingRequests);
 // Book
 router.get('/', auth, bookController.getBooks);
 router.get('/:book_id', auth, bookController.getBookById);
