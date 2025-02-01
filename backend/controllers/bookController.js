@@ -282,7 +282,22 @@ exports.returnBook = async (req, res) => {
     }
   
 };
+exports.getBorrowRequestDetails = async (req, res) => {
+  try {
+      const { borrowing_id } = req.params;
+      const borrowing = await BookBorrowing.findById(borrowing_id)
+          .populate('user_id', 'username user_type user_number')
+          .populate('book_id', 'title author');
 
+      if (!borrowing) {
+          return res.status(404).json({ error: 'Borrowing request not found' });
+      }
+
+      res.status(200).json(borrowing);
+  } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+};
 
 exports.getAllBorrowings = async (req, res) => {
   try {

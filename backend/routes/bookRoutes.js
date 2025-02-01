@@ -17,6 +17,8 @@ router.get('/my-borrowings', auth, verifyRole('customer'), bookController.getUse
 router.get('/borrow-requests', auth, verifyRole('librarian'), bookController.getUsersBorrowingRequests);
 router.put('/accept-borrow/:borrowing_id', auth, verifyRole('librarian'), bookController.acceptBorrowRequest); // New route for accepting borrow requests
 router.put('/reject-borrow/:borrowing_id', auth, verifyRole('librarian'), bookController.rejectBorrowRequest); // New route for rejecting borrow requests
+router.get('/borrow-requests/:borrowing_id', auth, verifyRole('librarian'), bookController.getBorrowRequestDetails);
+
 // Book
 router.get('/', auth, bookController.getBooks);
 router.get('/:book_id', auth, bookController.getBookById);
