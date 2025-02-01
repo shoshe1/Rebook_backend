@@ -8,6 +8,7 @@ const BookDonation = require('../models/BookDonation');
 const { json } = require('express');
 const { get } = require('mongoose');
 const mongoose = require('mongoose');
+const router = require('../routes/bookRoutes');
 
 
 exports.getBooks = async (req, res) => {
@@ -495,6 +496,52 @@ exports.getUsersBorrowingRequests = async (req, res) => {
       .populate('book_id', 'title author')
       .populate('user_id', 'username');
     res.status(200).json(borrowRequests);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getpendingdonationrequests = async (req, res) => {
+  try {
+    const donations = await BookDonation.find({ donation_status: 'pending' })
+      .populate('book_id', 'title author')
+      .populate('user_id', 'username user_id user_number' );
+    res.status(200).json(donations);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.acceptDonationRequest = async (req, res) => {
+  try {
+    const { donation_id } = req.params;
+    const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) });
+    if (!donation) {
+      return res.status(404).json({ error: 'Donation request not found' });
+    }
+    if (donation.donation_status !== 'pending') {
+      return res.status(400).json({ error: 'Donation request is not pending' });
+    }
+    donation.donation_status = 'accepted';
+    await donation.save();    
+    res.status(200).json({ message: 'Donation request accepted successfully', donation });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+exports.rejectdonationrequest = async (req, res) => {
+  try {
+    const { donation_id } = req.params;
+    const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) });
+    if (!donation) {
+      return res.status(404).json({ error: 'Donation request not found' });
+    }
+    if (donation.donation_status !== 'pending') {
+      return res.status(400).json({ error: 'Donation request is not pending' });
+    }
+    donation.donation_status = 'rejected';
+    await donation.save();
+    res.status(200).json({ message: 'Donation request rejected successfully', donation });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
