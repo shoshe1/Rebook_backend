@@ -285,8 +285,9 @@ exports.returnBook = async (req, res) => {
 exports.getBorrowRequestDetails = async (req, res) => {
   try {
       const { borrowing_id } = req.params;
-      const borrowing = await BookBorrowing.findById(borrowing_id)
-          .populate('user_id', 'username user_type user_number')
+      
+      const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) })
+      .populate('user_id', 'username user_type user_number')
           .populate('book_id', 'title author');
 
       if (!borrowing) {
