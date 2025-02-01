@@ -62,6 +62,7 @@ const jwt = require('jsonwebtoken');
             const user = new User({
               user_id: await User.countDocuments() + 1,
               username,
+              user_number: Math.floor(Math.random() * 100000),
               password: hashedPassword,
               user_type,
             });
