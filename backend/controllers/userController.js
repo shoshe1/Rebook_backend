@@ -15,7 +15,10 @@ const jwt = require('jsonwebtoken');
 
       exports.getUsers = async (req, res) => {
         try {
-            const users = await User.find(   { user_type: 'customer'  }).select('-password');
+            const users = await User.find(   { user_type: 'customer'  });
+            if (!req.user) {
+            return res.status(401).json({ error: 'Unauthorized access' });
+        }
             res.status(200).json(users);
         } catch (error) {
             console.log('error in get_users',error);
