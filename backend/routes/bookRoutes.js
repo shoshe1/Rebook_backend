@@ -9,8 +9,8 @@ router.get('/donations', auth, verifyRole('librarian'), bookController.getAllDon
 router.delete('/donate/:donation_id', auth, verifyRole('librarian'), bookController.deleteDonation);
 router.post('/donate', auth, verifyRole('customer'), bookController.createDonation);
 router.get('/pending-donation-requests', auth, verifyRole('librarian'), bookController.getpendingdonationrequests);
-router.get('/accept-donation-requests', auth, verifyRole('librarian'), bookController.acceptDonationRequest);
-router.get('/reject-donation-requests', auth, verifyRole('librarian'), bookController.rejectdonationrequest);
+router.put('/accept-donation/:donation_id', auth, verifyRole('librarian'), bookController.acceptDonationRequest);
+router.put('/reject-donation/:donation_id', auth, verifyRole('librarian'), bookController.rejectdonationrequest); // Route for rejecting donation requests
 
 // Borrowing
 router.post('/borrow', auth, verifyRole('customer'), bookController.borrowBook);
