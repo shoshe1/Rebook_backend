@@ -13,15 +13,15 @@ const jwt = require('jsonwebtoken');
       };
       
 
-exports.getUsers = async (req, res) => {
-    try {
-        const users = await User.find();
-        res.status(200).json(users);
-    } catch (error) {
-        console.log('error in get_users',error);
-        res.status(500).json({ error: error.message });
-    }
-    };
+      exports.getUsers = async (req, res) => {
+        try {
+            const users = await User.find(   { user_type: 'customer'  }).select('-password');
+            res.status(200).json(users);
+        } catch (error) {
+            console.log('error in get_users',error);
+            res.status(500).json({ error: error.message });
+        }
+        };
     exports.getUserById = async (req, res) => {
         try {
           const userId = req.params.user_id; 
