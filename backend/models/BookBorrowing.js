@@ -7,7 +7,7 @@ const bookBorrowingSchema = new mongoose.Schema({
   borrow_date: { type: Date, default: Date.now },
   due_date: { type: Date, required: true },
   return_date: { type: Date },
-  borrowing_status: { type: String, enum: ['borrowed', 'returned', 'overdue', 'pending'], default: 'pending' }
+  borrowing_status: { type: String, enum: ['borrowed', 'returned', 'overdue', 'pending' , 'rejected'], default: 'pending' }
 });
 
 module.exports = mongoose.model('BookBorrowing', bookBorrowingSchema);
