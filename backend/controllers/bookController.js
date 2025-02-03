@@ -9,7 +9,7 @@ const router = require('../routes/bookRoutes');
 
 exports.getBooks = async (req, res) => {
   try {
-    const books = await Book.find();
+    const books = await Book.find( {book_status : 'available' } );
     res.status(200).json(books);
   } catch (error) {
     res.status(500).json({ error: error.message });
