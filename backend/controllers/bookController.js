@@ -324,7 +324,7 @@ exports.createDonation = async (req, res) => {
     const { book_title, book_author, book_condition, book_photo, category, publication_year } = req.body;
     
     // Validate required fields
-    if (!book_title || !book_author || !book_condition || !book_photo || !category) {
+    if (!book_title || !book_author || !book_condition || !book_photo || !category || !publication_year) {
       return res.status(400).json({ 
         error: 'Book title, author, condition, photo, and category are required fields' 
       });
