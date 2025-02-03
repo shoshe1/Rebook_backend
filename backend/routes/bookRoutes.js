@@ -28,6 +28,7 @@ router.get('/borrow-requests/:borrowing_id', auth, verifyRole('librarian'), book
 router.get('/customer', auth, verifyRole('customer'), bookController.getBooks);
 router.get('/', auth, verifyRole('librarian'), bookController.getBooks);
 router.get('/:book_id', auth, bookController.getBookById);
+router.get('customer/:book_id', auth,verifyRole('customer'), bookController.getBookById);
 router.post('/', auth, verifyRole('librarian'), bookController.createBook);
 router.put('/:book_id', auth, verifyRole('librarian'), bookController.updateBook);
 router.delete('/:book_id', auth, verifyRole('librarian'), bookController.deleteBook);
