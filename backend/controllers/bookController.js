@@ -317,6 +317,21 @@ exports.getAllreturnedBorrowingsByuserId = async (req, res) => {
     }
   
 }
+exports.getDonationById = async (req, res) => {
+  try {
+    const { donation_id } = req.params;
+    const donation = await BookDonation.findOne({ donation_id });
+
+    if (!donation) {
+      return res.status(404).json({ error: 'Donation not found' });
+    }
+
+    res.status(200).json(donation);
+  } catch (error) {
+    console.error('Error fetching donation details:', error);
+    res.status(500).json({ error: 'Failed to fetch donation details' });
+  }
+};
 
 exports.createDonation = async (req, res) => {
   try {
