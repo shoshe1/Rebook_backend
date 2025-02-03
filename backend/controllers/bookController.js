@@ -456,7 +456,24 @@ exports.getUserBorrowedBooks = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.getuserborrowingbookbyborrowingid = async (req, res) => {
+  try {
+    const user_id = new mongoose.Types.ObjectId(req.user._id); // Correctly use the ObjectId constructor
+    const { borrowing_id } = req.params;
 
+    const borrowing = await BookBorrowing.findOne({ borrowing_id: borrowing_id, user_id })
+      .populate('book_id', 'book_id title author publication_year category book_photo')
+      .populate('user_id', 'user_id username');
+
+    if (!borrowing) {
+      return res.status(404).json({ error: 'Borrowed book not found' });
+    }
+
+    res.status(200).json(borrowing);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 exports.getUsersBorrowingRequests = async (req, res) => {
   try {
     const borrowRequests = await BookBorrowing.find({ borrowing_status: 'pending' })
