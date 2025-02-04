@@ -400,7 +400,7 @@ exports.addDonation = async (req, res) => {
 
 exports.getAllDonations = async (req, res) => {
   try {
-    const donations = await BookDonation.find( {borrowing_status : 'donated' } );
+    const donations = await BookDonation.find(  );
     res.status(200).json(donations);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -622,71 +622,79 @@ exports.rejectdonationrequest = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+// Configure Multer for file storage
+
 exports.createDonation = async (req, res) => {
   try {
-    const user_id = req.user._id; // Get user ID from authenticated user
-    const { book_title, book_author, book_condition, book_photo, category, publication_year } = req.body;
+    // Check if all required fields are provided
+    const { book_title, book_author, book_condition, category, publication_year } = req.body;
 
-    // Validate required fields
-    if (!book_title || !book_author || !book_condition || !book_photo || !category || !publication_year) {
-      return res.status(400).json({ 
-        error: 'Book title, author, condition, photo, category, and publication year are required fields' 
-      });
+    if (!book_title || !book_author || !book_condition || !category || !publication_year || !req.file) {
+      return res.status(400).json({ error: 'All fields and file are required' });
     }
 
-    // Find or create the book
-    let book = await Book.findOne({ title: book_title, author: book_author });
+    // Save file path for the uploaded image
+    const book_photo = req.file ? `/uploads/${req.file.filename}` : '/uploads/no_img.jpeg'; // Default image if no file uploaded
+
+    // Check if the book already exists
+    let book = await Book.findOne({ title: book_title, author: book_author, category, publication_year });
+
     if (!book) {
       const totalBooks = await Book.countDocuments();
-      const newBookId = totalBooks + 1;
-
       book = new Book({
-        book_id: newBookId,
+        book_id: totalBooks + 1,
         title: book_title,
         author: book_author,
-        publication_year: publication_year || new Date().getFullYear(),
+        publication_year: Number(publication_year),
         category,
         total_copies: 1,
         available_copies: 1,
         book_photo
       });
-      await book.save();
+
+      await book.save(); // Save the new book
     }
 
-    // Fetch the user's username
-    const user = await User.findById(user_id);
+    // Find the user making the donation
+    const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Create donation with sanitized inputs
-    const donation = new BookDonation({
-      user_id: new mongoose.Types.ObjectId(user_id),
-      user_name: user.username,  // Ensure this is populated correctly
+    // Create a new donation
+    const totalDonations = await BookDonation.countDocuments();
+    const donation_id = totalDonations + 1;
+
+    const newDonation = new BookDonation({
+      donation_id,
+      user_id: req.user._id,
+      user_name: req.user.username,
       book_id: book._id,
-      book_title: book_title.trim(),
-      book_author: book_author.trim(),
-      donation_date: new Date(),
-      book_condition: book_condition.toLowerCase(),
+      book_title,
+      book_author,
+      book_condition,
+      category,
+      publication_year: Number(publication_year),
       book_photo,
-      donation_id: Math.floor(Math.random() * 100000),
-      donation_status: 'pending'
+      donation_status: 'pending',
+      donation_date: new Date()
     });
 
-    await donation.save();
+    await newDonation.save();
 
-    return res.status(201).json({
-      success: true,
-      message: 'Book donation created successfully',
-      donation
+    return res.status(201).json({ 
+      success: true, 
+      message: 'Donation created successfully!', 
+      donation: newDonation 
     });
-
   } catch (error) {
-    console.error('Error creating donation:', error); // Log full error
+    console.error('Error creating donation:', error);
     return res.status(500).json({ 
-      success: false,
-      error: 'Failed to create donation',
-      details: error.message
+      success: false, 
+      error: 'Failed to create donation', 
+      details: error.message 
     });
   }
 };

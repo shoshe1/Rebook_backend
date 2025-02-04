@@ -1,17 +1,23 @@
+
 const express = require('express');
 const router = express.Router();
 const bookController = require('../controllers/bookController');
 const auth = require('../middleware/auth');
 const verifyRole = require('../middleware/verifyRole');
+const upload = require('../middleware/upload'); // Import the upload middleware
 
 // Donations
 router.get('/donations', auth, verifyRole('librarian'), bookController.getAllDonations);
 router.delete('/donate/:donation_id', auth, verifyRole('librarian'), bookController.deleteDonation);
-router.post('/donate', auth, verifyRole('customer'), bookController.createDonation);
-// router.post('/add-donate', auth, verifyRole('customer'), bookController.addDonation);
+router.post('/donate',
+  auth, 
+  verifyRole('customer'), 
+  upload.single('book_photo'), // Ensure this matches the frontend field name
+  bookController.createDonation
+);
 router.get('/pending-donation-requests', auth, verifyRole('librarian'), bookController.getpendingdonationrequests);
 router.put('/accept-donation/:donation_id', auth, verifyRole('librarian'), bookController.acceptDonationRequest);
-router.put('/reject-donation/:donation_id', auth, verifyRole('librarian'), bookController.rejectdonationrequest); // Route for rejecting donation requests
+router.put('/reject-donation/:donation_id', auth, verifyRole('librarian'), bookController.rejectdonationrequest);
 router.get('/donation/:donation_id', auth, verifyRole('librarian'), bookController.getDonationById);
 
 // Borrowing
@@ -20,10 +26,9 @@ router.put('/return/:borrowing_id', auth, verifyRole('customer'), bookController
 router.get('/borrowings', auth, verifyRole('librarian'), bookController.getAllBorrowings);
 router.get('/my-borrowings', auth, verifyRole('customer'), bookController.getUserBorrowedBooks);
 router.get('/my-borrowings/:borrowing_id', auth, verifyRole('customer'), bookController.getuserborrowingbookbyborrowingid);
-
 router.get('/borrow-requests', auth, verifyRole('librarian'), bookController.getUsersBorrowingRequests);
-router.put('/accept-borrow/:borrowing_id', auth, verifyRole('librarian'), bookController.acceptBorrowRequest); // New route for accepting borrow requests
-router.put('/reject-borrow/:borrowing_id', auth, verifyRole('librarian'), bookController.rejectBorrowRequest); // New route for rejecting borrow requests
+router.put('/accept-borrow/:borrowing_id', auth, verifyRole('librarian'), bookController.acceptBorrowRequest);
+router.put('/reject-borrow/:borrowing_id', auth, verifyRole('librarian'), bookController.rejectBorrowRequest);
 router.get('/borrow-requests/:borrowing_id', auth, verifyRole('librarian'), bookController.getBorrowRequestDetails);
 router.get('/user-borrowings/:borrowing_id', auth, verifyRole('customer'), bookController.getuserborrowingbookbyborrowingid);
 
@@ -32,7 +37,6 @@ router.get('/customer', auth, verifyRole('customer'), bookController.getBooks);
 router.get('/', auth, verifyRole('librarian'), bookController.getBooks);
 router.get('/:book_id', auth, bookController.getBookById);
 router.get('/customer/:book_id', auth, verifyRole('customer'), bookController.getBookById);
-
 router.post('/', auth, verifyRole('librarian'), bookController.createBook);
 router.put('/:book_id', auth, verifyRole('librarian'), bookController.updateBook);
 router.delete('/:book_id', auth, verifyRole('librarian'), bookController.deleteBook);
