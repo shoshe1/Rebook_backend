@@ -7,7 +7,7 @@ const auth = require('../middleware/auth');
 const verifyRole = require('../middleware/verifyRole');
 
 router.get('/', auth, verifyRole('librarian'), user_controller.getUsers);
-router.post('/create-account', auth, verifyRole('librarian'), user_controller.addUser);
+router.post('/create-account', user_controller.addUser);
 router.get('/:user_id', auth, user_controller.getUserById);
 // router.put('/:id', updateUser);
 router.post('/login', user_controller.log_in);
