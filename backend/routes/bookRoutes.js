@@ -18,7 +18,7 @@ router.post('/donate',
 router.get('/pending-donation-requests', auth, verifyRole('librarian'), bookController.getpendingdonationrequests);
 router.put('/accept-donation/:donation_id', auth, verifyRole('librarian'), bookController.acceptDonationRequest);
 router.put('/reject-donation/:donation_id', auth, verifyRole('librarian'), bookController.rejectdonationrequest);
-router.get('/donation/:donation_id', auth, verifyRole('librarian'), bookController.getDonationById);
+router.get('/pending-donation-requests/:donation_id', auth, verifyRole('librarian'), bookController.getDonationById);
 
 // Borrowing
 router.post('/borrow', auth, verifyRole('customer'), bookController.borrowBook);
