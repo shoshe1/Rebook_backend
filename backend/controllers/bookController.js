@@ -7,7 +7,6 @@ const BookDonation = require('../models/BookDonation');
 const mongoose = require('mongoose');
 const router = require('../routes/bookRoutes');
 const upload = require('../middleware/upload'); // Ensure this is correctly imported
-const fs = require('fs');
 
 exports.uploadBookPhoto = (req, res) => {
   if (!req.file) {
@@ -56,8 +55,7 @@ exports.getBookById = async (req, res) => {
   }
 };
 
-
-
+// controller/bookController.js
 exports.createBook = async (req, res) => {
   try {
     // Check if all required fields are provided
@@ -67,31 +65,16 @@ exports.createBook = async (req, res) => {
       return res.status(400).json({ error: 'All fields and file are required' });
     }
 
+    // Save file path for the uploaded image
+    const book_photo = req.file ? `/uploads/${req.file.filename}` : '/uploads/no_img.jpeg'; // Default image if no file uploaded
+
     // Check if the book already exists
     let book = await Book.findOne({ title, author, category, publication_year });
 
     if (!book) {
       const totalBooks = await Book.countDocuments();
-      const book_id = totalBooks + 1;
-
-      // Create the books directory if it doesn't exist
-      const booksDir = path.join(__dirname, '../uploads/books');
-      if (!fs.existsSync(booksDir)) {
-        fs.mkdirSync(booksDir, { recursive: true });
-      }
-
-      // Extract the file extension
-      const fileExtension = path.extname(req.file.originalname);
-      // Rename the uploaded file to include the book_id and move it to the books directory
-      const newFilename = `${book_id}${fileExtension}`;
-      const newFilePath = path.join(booksDir, newFilename);
-
-      fs.renameSync(req.file.path, newFilePath);
-
-      const book_photo = `/uploads/books/${newFilename}`;
-
       book = new Book({
-        book_id,
+        book_id: totalBooks + 1,
         title,
         author,
         publication_year: Number(publication_year),
@@ -106,27 +89,12 @@ exports.createBook = async (req, res) => {
       // If book exists, update copies and photo
       book.total_copies += 1;
       book.available_copies += 1;
-
-      // Create the books directory if it doesn't exist
-      const booksDir = path.join(__dirname, '../uploads/books');
-      if (!fs.existsSync(booksDir)) {
-        fs.mkdirSync(booksDir, { recursive: true });
-      }
-
-      // Extract the file extension
-      const fileExtension = path.extname(req.file.originalname);
-      // Rename the uploaded file to include the book_id and move it to the books directory
-      const newFilename = `${book.book_id}${fileExtension}`;
-      const newFilePath = path.join(booksDir, newFilename);
-
-      fs.renameSync(req.file.path, newFilePath);
-
-      book.book_photo = `/uploads/books/${newFilename}`;
+      book.book_photo = book_photo;
       await book.save();
     }
 
     // Ensure you return the full URL for the book photo
-    const imageUrl = `${req.protocol}://${req.get('host')}${book.book_photo}`;
+    const imageUrl = `${req.protocol}://${req.get('host')}${book_photo}`;
 
     return res.status(201).json({ 
       success: true, 
@@ -143,6 +111,7 @@ exports.createBook = async (req, res) => {
     });
   }
 };
+
 
 exports.deleteBook = async (req, res) => {
   try {
@@ -311,8 +280,8 @@ exports.getBorrowRequestDetails = async (req, res) => {
       const { borrowing_id } = req.params;
       
       const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) })
-      .populate('user_id', 'username user_type user_number')
-          .populate('book_id', 'title author');
+          .populate('user_id', 'username user_type user_number')
+          .populate('book_id', 'title author book_photo'); // Include book_photo
 
       if (!borrowing) {
           return res.status(404).json({ error: 'Borrowing request not found' });
@@ -320,8 +289,8 @@ exports.getBorrowRequestDetails = async (req, res) => {
 
       res.status(200).json(borrowing);
   } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
+      res.status(500).json({ error: error.message });
+    }
 };
 
 exports.getAllBorrowings = async (req, res) => {
@@ -656,6 +625,8 @@ exports.rejectdonationrequest = async (req, res) => {
 };
 
 
+// Configure Multer for file storage
+
 exports.createDonation = async (req, res) => {
   try {
     // Check if all required fields are provided
@@ -665,31 +636,26 @@ exports.createDonation = async (req, res) => {
       return res.status(400).json({ error: 'All fields and file are required' });
     }
 
+    // Save file path for the uploaded image
+    const book_photo = req.file ? `/uploads/${req.file.filename}` : '/uploads/no_img.jpeg'; // Default image if no file uploaded
+
     // Check if the book already exists
     let book = await Book.findOne({ title: book_title, author: book_author, category, publication_year });
-    let book_photo;
 
     if (!book) {
       const totalBooks = await Book.countDocuments();
-      const book_id = totalBooks + 1;
-
       book = new Book({
-        book_id,
+        book_id: totalBooks + 1,
         title: book_title,
         author: book_author,
         publication_year: Number(publication_year),
         category,
         total_copies: 1,
         available_copies: 1,
-        book_photo: '' // Temporary placeholder
+        book_photo
       });
 
       await book.save(); // Save the new book
-      book_photo = ''; // Initialize book_photo for the new book
-    } else {
-      // If the book already exists, use the existing book_id and book_photo
-      var book_id = book.book_id;
-      book_photo = book.book_photo;
     }
 
     // Find the user making the donation
@@ -701,126 +667,6 @@ exports.createDonation = async (req, res) => {
     // Create a new donation
     const totalDonations = await BookDonation.countDocuments();
     const donation_id = totalDonations + 1;
-
-    // Create the donations directory if it doesn't exist
-    const donationsDir = path.join(__dirname, '../uploads/donations');
-    if (!fs.existsSync(donationsDir)) {
-      fs.mkdirSync(donationsDir, { recursive: true });
-    }
-
-    // Rename the uploaded file to include the donation_id and move it to the donations directory
-    const originalFilename = req.file.filename;
-    const newFilename = `${donation_id}_${originalFilename}`;
-    const newFilePath = path.join(donationsDir, newFilename);
-
-    fs.renameSync(req.file.path, newFilePath);
-
-    book_photo = `/uploads/donations/${newFilename}`;
-
-    // Update the book with the correct book_photo
-    if (!book.book_photo) {
-      book.book_photo = book_photo;
-      await book.save();
-    }
-
-    const newDonation = new BookDonation({
-      donation_id,
-      user_id: req.user._id,
-      user_name: req.user.username,
-      book_id: book._id,
-      book_title,
-      book_author,
-      book_condition,
-      category,
-      publication_year: Number(publication_year),
-      book_photo,
-      donation_status: 'pending',
-      donation_date: new Date()
-    });
-
-    await newDonation.save();
-
-    return res.status(201).json({ 
-      success: true, 
-      message: 'Donation created successfully!', 
-      donation: newDonation 
-    });
-  } catch (error) {
-    console.error('Error creating donation:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Failed to create donation', 
-      details: error.message 
-    });
-  }
-};
-exports.createDonation = async (req, res) => {
-  try {
-    // Check if all required fields are provided
-    const { book_title, book_author, book_condition, category, publication_year } = req.body;
-
-    if (!book_title || !book_author || !book_condition || !category || !publication_year || !req.file) {
-      return res.status(400).json({ error: 'All fields and file are required' });
-    }
-
-    // Check if the book already exists
-    let book = await Book.findOne({ title: book_title, author: book_author, category, publication_year });
-    let book_photo;
-
-    if (!book) {
-      const totalBooks = await Book.countDocuments();
-      const book_id = totalBooks + 1;
-
-      book = new Book({
-        book_id,
-        title: book_title,
-        author: book_author,
-        publication_year: Number(publication_year),
-        category,
-        total_copies: 1,
-        available_copies: 1,
-        book_photo: '' // Temporary placeholder
-      });
-
-      await book.save(); // Save the new book
-      book_photo = ''; // Initialize book_photo for the new book
-    } else {
-      // If the book already exists, use the existing book_id and book_photo
-      var book_id = book.book_id;
-      book_photo = book.book_photo;
-    }
-
-    // Find the user making the donation
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Create a new donation
-    const totalDonations = await BookDonation.countDocuments();
-    const donation_id = totalDonations + 1;
-
-    // Create the donations directory if it doesn't exist
-    const donationsDir = path.join(__dirname, '../uploads/donations');
-    if (!fs.existsSync(donationsDir)) {
-      fs.mkdirSync(donationsDir, { recursive: true });
-    }
-
-    // Extract the file extension
-    const fileExtension = path.extname(req.file.originalname);
-    // Rename the uploaded file to include the donation_id and move it to the donations directory
-    const newFilename = `${donation_id}${fileExtension}`;
-    const newFilePath = path.join(donationsDir, newFilename);
-
-    fs.renameSync(req.file.path, newFilePath);
-
-    book_photo = `/uploads/donations/${newFilename}`;
-
-    // Update the book with the correct book_photo
-    if (!book.book_photo) {
-      book.book_photo = book_photo;
-      await book.save();
-    }
 
     const newDonation = new BookDonation({
       donation_id,
