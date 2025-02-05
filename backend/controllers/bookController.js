@@ -6,6 +6,16 @@ const User = require('../models/User');
 const BookDonation = require('../models/BookDonation');
 const mongoose = require('mongoose');
 const router = require('../routes/bookRoutes');
+const upload = require('../middleware/upload'); // Ensure this is correctly imported
+
+exports.uploadBookPhoto = (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded.');
+  }
+  res.send({ image_url: `/uploads/${req.file.filename}` });
+};
+
+
 
 exports.getBooks = async (req, res) => {
   try {
@@ -45,72 +55,63 @@ exports.getBookById = async (req, res) => {
   }
 };
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // File uploads will be stored in the 'uploads' directory
-  },
-  filename: function (req, file, cb) {
-    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
-  },
-});
-const upload = multer({storage: storage});
+// controller/bookController.js
+exports.createBook = async (req, res) => {
+  try {
+    // Check if all required fields are provided
+    const { title, author, publication_year, category } = req.body;
 
-exports.createBook = [
-  upload.single('book_photo'), // Middleware to handle file upload
-  async (req, res) => {
-    try {
-      const { title, author, publication_year, category } = req.body;
+    if (!title || !author || !publication_year || !category || !req.file) {
+      return res.status(400).json({ error: 'All fields and file are required' });
+    }
 
-      // Set default photo if no photo uploaded
-      const book_photo = req.file 
-        ? `/uploads/${req.file.filename}` 
-        : '/uploads/no_img.jpeg'; // Default book cover path
+    // Save file path for the uploaded image
+    const book_photo = req.file ? `/uploads/${req.file.filename}` : '/uploads/no_img.jpeg'; // Default image if no file uploaded
 
-      // Find existing book with matching details
-      let book = await Book.findOne({ 
-        title, 
-        author, 
-        publication_year, 
-        category 
+    // Check if the book already exists
+    let book = await Book.findOne({ title, author, category, publication_year });
+
+    if (!book) {
+      const totalBooks = await Book.countDocuments();
+      book = new Book({
+        book_id: totalBooks + 1,
+        title,
+        author,
+        publication_year: Number(publication_year),
+        category,
+        total_copies: 1,
+        available_copies: 1,
+        book_photo
       });
 
-      if (book) {
-        // If book exists, update copies and photo
-        book.total_copies += 1;
-        book.available_copies += 1;
-        book.book_photo = book_photo;
-        await book.save();
-        return res.status(200).json({ 
-          message: 'Book already exists. Updated available copies.', 
-          book 
-        });
-      } else {
-        // If book doesn't exist, create new book
-        const totalBooks = await Book.countDocuments();
-        const newBookId = totalBooks + 1;
-
-        book = new Book({
-          book_id: newBookId,
-          title,
-          author,
-          publication_year,
-          category,
-          total_copies: 1,
-          available_copies: 1,
-          book_photo: book_photo
-        });
-
-        await book.save();
-        return res.status(201).json({ 
-          message: 'New book added successfully!', 
-          book 
-        });
-      }
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+      await book.save(); // Save the new book
+    } else {
+      // If book exists, update copies and photo
+      book.total_copies += 1;
+      book.available_copies += 1;
+      book.book_photo = book_photo;
+      await book.save();
     }
+
+    // Ensure you return the full URL for the book photo
+    const imageUrl = `${req.protocol}://${req.get('host')}${book_photo}`;
+
+    return res.status(201).json({ 
+      success: true, 
+      message: 'Book created successfully!', 
+      book,
+      imageUrl // Return full image URL
+    });
+  } catch (error) {
+    console.error('Error creating book:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to create book', 
+      details: error.message 
+    });
   }
-];
+};
+
 
 exports.deleteBook = async (req, res) => {
   try {

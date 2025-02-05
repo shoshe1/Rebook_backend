@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const bookController = require('../controllers/bookController');
@@ -37,13 +36,21 @@ router.get('/customer', auth, verifyRole('customer'), bookController.getBooks);
 router.get('/', auth, verifyRole('librarian'), bookController.getBooks);
 router.get('/:book_id', auth, bookController.getBookById);
 router.get('/customer/:book_id', auth, verifyRole('customer'), bookController.getBookById);
-router.post('/', auth, verifyRole('librarian'), bookController.createBook);
+router.post('/', 
+  auth, 
+  verifyRole('librarian'), 
+  upload.single('book_photo'), // Ensure this matches the frontend field name
+  bookController.createBook
+);
 router.put('/:book_id', auth, verifyRole('librarian'), bookController.updateBook);
 router.delete('/:book_id', auth, verifyRole('librarian'), bookController.deleteBook);
 router.get('/image/:book_id', auth, bookController.getimagebyid);
 router.get('/get_total_books', auth, bookController.getTotalBooks);
 router.get('/get_returned_books', auth, bookController.getAllreturnedBorrowingsByuserId);
 router.get('/returned_books/:user_id', auth, bookController.getAllReturnedBooksByUserId);
+
+// Add route for uploading book photos
+router.post('/upload', auth, upload.single('image'), bookController.uploadBookPhoto);
 
 // Enable CORS specifically for this route
 const cors = require('cors');
