@@ -281,7 +281,7 @@ exports.getBorrowRequestDetails = async (req, res) => {
       
       const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) })
           .populate('user_id', 'username user_type user_number')
-          .populate('book_id', 'title author book_photo'); // Include book_photo
+          .populate('book_id', 'title author book_photo available_copies total_copies'); // Include book_photo
 
       if (!borrowing) {
           return res.status(404).json({ error: 'Borrowing request not found' });
