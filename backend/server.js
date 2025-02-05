@@ -27,10 +27,11 @@ app.use(
           'http://localhost:5000', // Local backend URL
           'http://localhost:3000', // Local frontend URL
           'https://project-client-side-rjgz.onrender.com', // New Render URL
+          'https://rebook-backend-ldmy.onrender.com', // Backend URL
         ],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
+        imgSrc: ["'self'", "data:", 'https://rebook-backend-ldmy.onrender.com'], // Allow images from backend
       },
     },
   })
@@ -43,6 +44,7 @@ app.use(
       'http://localhost:3000', // Local React development
       'http://localhost:5000', // Local Electron app
       'https://project-client-side-rjgz.onrender.com', // New Render URL
+      'https://rebook-backend-ldmy.onrender.com', // Backend URL
     ],
     credentials: true, // Allow cookies or authorization headers
   })
@@ -60,7 +62,13 @@ mongoose
 // API Routes
 app.use('/api/books', bookRoutes); // Routes for books
 app.use('/api/users', userRoutes); // Routes for users
-app.use('/api/studyrooms', studyRoomRoutes); // Uncomment if needed
+app.use('/api/studyrooms', studyRoomRoutes); // Routes for study rooms
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send({ error: err.message });
+});
 
 // Start the server
 const PORT = process.env.PORT || 5000;
