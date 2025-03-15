@@ -1,25 +1,66 @@
 const Book = require('../models/Book');
-const multer = require('multer');
-const path = require('path');
-const BookBorrowing = require('../models/BookBorrowing');
-const User = require('../models/User');
-const BookDonation = require('../models/BookDonation');
 const mongoose = require('mongoose');
-const router = require('../routes/bookRoutes');
-const upload = require('../middleware/upload'); // Ensure this is correctly imported
+const BookBorrowing = require('../models/BookBorrowing');
+const User = require('../models/User');  // Fixed import
+const BookDonation = require('../models/BookDonation');
+const { gfs, Attachment } = require('../middleware/gridfs-setup');
+const { ObjectId } = mongoose.Types;
+const fs = require('fs');
+const path = require('path');
+
+// Convert Buffer to base64 string
+const bufferToBase64 = (buffer, mimetype) => {
+  return `data:${mimetype};base64,${buffer.toString('base64')}`;
+};
+
+// Convert file on disk to base64 string
+const fileToBase64 = (filePath, mimetype) => {
+  try {
+    const fileData = fs.readFileSync(filePath);
+    return `data:${mimetype};base64,${fileData.toString('base64')}`;
+  } catch (error) {
+    console.error('Error converting file to base64:', error);
+    return null;
+  }
+};
+// bookController.js
+
+// Function to handle searching books by title or author
+exports.searchBooks = async (req, res) => {
+    const query = req.query.query; // Get search query from the query string
+    if (!query) {
+        return res.status(400).json({ message: "Query parameter is required" });
+    }
+
+    try {
+        // Search books by title or author (you can add more fields)
+        const books = await Book.find({
+            $or: [
+                { title: { $regex: query, $options: 'i' } },  // Case-insensitive search
+                { author: { $regex: query, $options: 'i' } }  // Case-insensitive search
+            ]
+        });
+
+        res.json(books);  // Return the matching books
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to search books' });
+    }
+};
 
 exports.uploadBookPhoto = (req, res) => {
   if (!req.file) {
     return res.status(400).send('No file uploaded.');
   }
-  res.send({ image_url: `/uploads/${req.file.filename}` });
+
+  // Convert the buffer to base64
+  const base64Image = bufferToBase64(req.file.buffer, req.file.mimetype);
+  res.send({ image_url: base64Image });
 };
-
-
 
 exports.getBooks = async (req, res) => {
   try {
-    const books = await Book.find( {book_status : 'available' } );
+    const books = await Book.find({ book_status: 'available' });
     res.status(200).json(books);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -28,47 +69,41 @@ exports.getBooks = async (req, res) => {
 
 exports.getBookById = async (req, res) => {
   try {
-    console.log('Received params:', req.params);
-    console.log('book_id type:', typeof req.params.book_id);
-    
     const bookId = parseInt(req.params.book_id, 10);
-    
-    console.log('Parsed bookId:', bookId);
-    console.log('Parsed bookId type:', typeof bookId);
-
     if (isNaN(bookId)) {
-      return res.status(400).json({ 
-        error: 'Invalid book ID', 
-        receivedId: req.params.book_id 
-      });
+      return res.status(400).json({ error: 'Invalid book ID', receivedId: req.params.book_id });
     }
 
-    const book = await Book.findOne({ book_id: bookId }); 
+    const book = await Book.findOne({ book_id: bookId });
     if (!book) {
       return res.status(404).json({ error: 'Book not found' });
     }
-    
+
     res.status(200).json(book);
   } catch (error) {
-    console.error('Book fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// controller/bookController.js
+// Create a book with GridFS for image storage
 exports.createBook = async (req, res) => {
   try {
-    // Check if all required fields are provided
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
+
     const { title, author, publication_year, category } = req.body;
 
-    if (!title || !author || !publication_year || !category || !req.file) {
-      return res.status(400).json({ error: 'All fields and file are required' });
+    if (!title || !author || !publication_year || !category) {
+      return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Save file path for the uploaded image
-    const book_photo = req.file ? `/uploads/${req.file.filename}` : '/uploads/no_img.jpeg'; // Default image if no file uploaded
+    if (!req.file) {
+      return res.status(400).json({ error: 'Book photo is required' });
+    }
 
-    // Check if the book already exists
+    // Store the GridFS file ID
+    const book_photo = req.file.id;
+
     let book = await Book.findOne({ title, author, category, publication_year });
 
     if (!book) {
@@ -84,34 +119,111 @@ exports.createBook = async (req, res) => {
         book_photo
       });
 
-      await book.save(); // Save the new book
+      await book.save();
     } else {
-      // If book exists, update copies and photo
       book.total_copies += 1;
       book.available_copies += 1;
-      book.book_photo = book_photo;
+      // Only update photo if a new one is provided
+      if (book_photo) {
+        book.book_photo = book_photo;
+      }
       await book.save();
     }
 
-    // Ensure you return the full URL for the book photo
-    const imageUrl = `${req.protocol}://${req.get('host')}${book_photo}`;
-
-    return res.status(201).json({ 
-      success: true, 
-      message: 'Book created successfully!', 
+    return res.status(201).json({
+      success: true,
+      message: 'Book created successfully!',
       book,
-      imageUrl // Return full image URL
+      imageUrl: `/api/books/photo/id/${book.book_photo}`
     });
   } catch (error) {
     console.error('Error creating book:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Failed to create book', 
-      details: error.message 
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to create book',
+      details: error.message
     });
   }
 };
 
+// Get book photo by filename
+exports.getBookPhoto = async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const file = await gfs.files.findOne({ filename });
+
+    if (!file || file.length === 0) {
+      return res.status(404).json({ error: 'No file exists' });
+    }
+
+    if (file.contentType === 'image/jpeg' || file.contentType === 'image/png' || file.contentType === 'image/gif') {
+      // Set the content type header
+      res.set('Content-Type', file.contentType);
+      
+      // Create a read stream and pipe it to the response
+      const readstream = gfs.createReadStream(file.filename);
+      readstream.pipe(res);
+    } else {
+      res.status(404).json({ error: 'Not an image' });
+    }
+  } catch (error) {
+    console.error('Error fetching image by filename:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get book photo by ID - with improved error handling and CORS
+exports.getBookPhotoById = async (req, res) => {
+  try {
+    const id = req.params.id;
+    
+    // Set CORS headers for all responses
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.error('Invalid ObjectId format:', id);
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
+    
+    // Find the file by ID
+    const File = mongoose.model('File');
+    const file = await File.findById(id);
+
+    if (!file) {
+      console.error('File not found in database:', id);
+      // Return a default image instead of an error
+      const defaultPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
+      if (fs.existsSync(defaultPath)) {
+        res.set('Content-Type', 'image/jpeg');
+        return fs.createReadStream(defaultPath).pipe(res);
+      }
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Set content type based on the file's mimetype
+    res.set('Content-Type', file.mimetype || 'application/octet-stream');
+    
+    // Create a read stream from the file path
+    const filePath = path.join(__dirname, '..', 'uploads', file.filename);
+    
+    if (fs.existsSync(filePath)) {
+      return fs.createReadStream(filePath).pipe(res);
+    } else {
+      console.error('File exists in database but not on disk:', filePath);
+      // Return a default image instead of an error
+      const defaultPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
+      if (fs.existsSync(defaultPath)) {
+        res.set('Content-Type', 'image/jpeg');
+        return fs.createReadStream(defaultPath).pipe(res);
+      }
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+  } catch (error) {
+    console.error('Error in getBookPhotoById:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 exports.deleteBook = async (req, res) => {
   try {
@@ -157,13 +269,21 @@ exports.updateBook = async (req, res) => {
 exports.borrowBook = async (req, res) => {
   try {
     const { book_id, due_date } = req.body;
-    const user_id = req.user._id; // Get the logged-in user's ID from the auth middleware
+    const user_id = req.user._id; // Get logged-in user's ID
 
     if (!book_id || !due_date) {
       return res.status(400).json({ error: 'book_id and due_date are required fields' });
     }
 
-    const book = await Book.findOne({ book_id: parseInt(book_id, 10) });
+    const bookIdNumber = Number(book_id); // Convert book_id to Number
+
+    if (isNaN(bookIdNumber)) {
+      return res.status(400).json({ error: 'Invalid book_id. It must be a number.' });
+    }
+
+    // Find book by book_id (the number, not MongoDB _id)
+    const book = await Book.findOne({ book_id: bookIdNumber });
+
     if (!book) {
       return res.status(404).json({ error: 'Book not found' });
     }
@@ -172,21 +292,27 @@ exports.borrowBook = async (req, res) => {
       return res.status(400).json({ error: 'Book is not available' });
     }
 
+    // Decrement available copies
     book.available_copies--;
     await book.save();
 
+    // Create borrowing record with book's MongoDB _id
     const borrowing = new BookBorrowing({
-      book_id: book._id, // Use the ObjectId of the book
-      user_id: new mongoose.Types.ObjectId(user_id), // Ensure user_id is an ObjectId
+      book_id: book._id, // Use the MongoDB _id from the book document
+      user_id: new mongoose.Types.ObjectId(user_id),
       due_date: new Date(due_date),
       borrowing_status: 'pending',
       borrow_date: new Date(),
-      borrowing_id: Math.floor(Math.random() * 100000) // Generate a random borrowing_id
+      borrowing_id: Math.floor(Math.random() * 100000)
     });
 
     await borrowing.save();
-    res.status(200).json({ message: 'Borrow request sent successfully', borrowing });
+    res.status(200).json({
+      message: 'Borrow request sent successfully',
+      borrowing
+    });
   } catch (error) {
+    console.error('Error in borrowBook:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -317,7 +443,8 @@ exports.getAllreturnedBorrowingsByuserId = async (req, res) => {
       res.status(500).json({error:error.message});
     }
   
-}
+};
+
 exports.getDonationById = async (req, res) => {
   try {
     const { donation_id } = req.params;
@@ -334,64 +461,79 @@ exports.getDonationById = async (req, res) => {
   }
 };
 
-
-
-exports.addDonation = async (req, res) => {
+// Create donation with GridFS
+exports.createDonation = async (req, res) => {
   try {
-    const user_id = req.user._id; // Get user ID from authenticated user
-    const { book_title, book_author, book_condition, book_photo, category, publication_year } = req.body;
-    
-    // Validate required fields
-    if (!book_title || !book_author || !book_condition || !book_photo || !category || !publication_year) {
-      return res.status(400).json({ 
-        error: 'Book title, author, condition, photo, and category are required fields' 
-      });
+    const { book_title, book_author, book_condition, category, publication_year } = req.body;
+
+    if (!book_title || !book_author || !book_condition || !category || !publication_year) {
+      return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Find or create the book
-    let book = await Book.findOne({ title: book_title, author: book_author });
+    if (!req.file) {
+      return res.status(400).json({ error: 'Book photo is required' });
+    }
+
+    // Store the GridFS file ID
+    const book_photo = req.file.id;
+
+    // Check if the book already exists
+    let book = await Book.findOne({ 
+      title: book_title, 
+      author: book_author, 
+      category, 
+      publication_year 
+    });
+
     if (!book) {
       const totalBooks = await Book.countDocuments();
-      const newBookId = totalBooks + 1;
-
       book = new Book({
-        book_id: newBookId,
+        book_id: totalBooks + 1,
         title: book_title,
         author: book_author,
-        publication_year: publication_year || new Date().getFullYear(),
+        publication_year: Number(publication_year),
         category,
         total_copies: 1,
         available_copies: 1,
         book_photo
       });
+
+      await book.save();
+    } else {
+      // If the book exists, increment copies
+      book.total_copies += 1;
+      book.available_copies += 1;
       await book.save();
     }
 
-    // Create donation with sanitized inputs
-    const donation = new BookDonation({
-      user_id: new mongoose.Types.ObjectId(user_id),
+    // Create new donation record
+    const totalDonations = await BookDonation.countDocuments();
+    const newDonation = new BookDonation({
+      donation_id: totalDonations + 1,
+      user_id: req.user._id,
       user_name: req.user.username,
       book_id: book._id,
-      book_title: book_title.trim(),
-      book_author: book_author.trim(),
-      donation_date: new Date(),
-      book_condition: book_condition.toLowerCase(),
+      book_title,
+      book_author,
+      book_condition,
+      category,
+      publication_year: Number(publication_year),
       book_photo,
-      donation_id: Math.floor(Math.random() * 100000),
-      donation_status: 'pending'
+      donation_status: 'pending',
+      donation_date: new Date()
     });
 
-    await donation.save();
+    await newDonation.save();
 
     return res.status(201).json({
       success: true,
-      message: 'Book donation created successfully',
-      donation
+      message: 'Donation created successfully!',
+      donation: newDonation,
+      imageUrl: `/api/books/photo/id/${book_photo}`
     });
-
   } catch (error) {
     console.error('Error creating donation:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
       error: 'Failed to create donation',
       details: error.message
@@ -401,7 +543,7 @@ exports.addDonation = async (req, res) => {
 
 exports.getAllDonations = async (req, res) => {
   try {
-    const donations = await BookDonation.find(  );
+    const donations = await BookDonation.find();
     res.status(200).json(donations);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -426,20 +568,30 @@ exports.getTotalBooks = async (req, res) => {
     const totalBooks = await Book.countDocuments();
     res.status(200).json({ totalBooks });
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+    res.status(500).json({ error: error.message });
+  }
 };
 
+// Get image by book ID
 exports.getimagebyid = async (req, res) => {
   try {
-    const bookId = req.params.book_id;
-    const book = await Book.findOne({ book_id: bookId });
-    if (!book) {
-      res.status(404).json({ error: 'Book not found' });
-      return;
+    const bookId = parseInt(req.params.book_id, 10);
+    if (isNaN(bookId)) {
+      return res.status(400).json({ error: 'Invalid book ID' });
     }
-    res.status(200).json({ imageUrl: `http://localhost:5000${book.book_photo}` });
+    
+    const book = await Book.findOne({ book_id: bookId });
+    
+    if (!book || !book.book_photo) {
+      return res.status(404).json({ error: 'Book or image not found' });
+    }
+    
+    // Return a URL to the image endpoint
+    res.status(200).json({
+      imageUrl: `/api/books/photo/id/${book.book_photo}`
+    });
   } catch (error) {
+    console.error('Error getting image by book ID:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -474,6 +626,7 @@ exports.getUserBorrowedBooks = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 exports.getuserborrowingbookbyborrowingid = async (req, res) => {
   try {
     const user_id = new mongoose.Types.ObjectId(req.user._id); // Correctly use the ObjectId constructor
@@ -492,6 +645,7 @@ exports.getuserborrowingbookbyborrowingid = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 exports.getUsersBorrowingRequests = async (req, res) => {
   try {
     const borrowRequests = await BookBorrowing.find({ borrowing_status: 'pending' })
@@ -508,73 +662,6 @@ exports.getpendingdonationrequests = async (req, res) => {
     const donations = await BookDonation.find({ donation_status: 'pending' })
       .populate('book_id', 'title author')
       .populate('user_id', 'username' );
-    res.status(200).json(donations);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.acceptDonationRequest = async (req, res) => {
-  try {
-    const { donation_id } = req.params;
-    const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) });
-    if (!donation) {
-      return res.status(404).json({ error: 'Donation request not found' });
-    }
-    if (donation.donation_status !== 'pending') {
-      return res.status(400).json({ error: 'Donation request is not pending' });
-    }
-    donation.donation_status = 'accepted';
-    await donation.save();
-    res.status(200).json({ message: 'Donation request accepted successfully', donation });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.rejectdonationrequest = async (req, res) => {
-  try {
-    const { donation_id } = req.params;
-    const user = await User.findOne({ user_id: userId });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const borrowings = await BookBorrowing.find({ user_id: user._id, borrowing_status: 'returned' }).populate('book_id');
-    res.status(200).json(borrowings);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-
-exports.getUserBorrowedBooks = async (req, res) => {
-  try {
-    const user_id = req.user._id; // Get the logged-in user's ID from the auth middleware
-    const borrowings = await BookBorrowing.find({ user_id })
-      .populate('book_id', 'book_id title author publication_year category book_photo')
-      .populate('user_id', 'user_id username');
-    res.status(200).json(borrowings);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-exports.getUsersBorrowingRequests = async (req, res) => {
-  try {
-    const borrowRequests = await BookBorrowing.find({ borrowing_status: 'pending' })
-      .populate('book_id', 'title author')
-      .populate('user_id', 'username');
-    res.status(200).json(borrowRequests);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.getpendingdonationrequests = async (req, res) => {
-  try {
-    const donations = await BookDonation.find({ donation_status: 'pending' })
-      .populate('book_id', 'title author book_id')
-      .populate('user_id', 'username user_id user_number' );
     res.status(200).json(donations);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -624,78 +711,168 @@ exports.rejectdonationrequest = async (req, res) => {
   }
 };
 
-
-// Configure Multer for file storage
-
-exports.createDonation = async (req, res) => {
+exports.addBook = async (req, res) => {
   try {
-    // Check if all required fields are provided
-    const { book_title, book_author, book_condition, category, publication_year } = req.body;
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
 
-    if (!book_title || !book_author || !book_condition || !category || !publication_year || !req.file) {
-      return res.status(400).json({ error: 'All fields and file are required' });
+    const { book_id, title, author, category, publication_year, total_copies, available_copies } = req.body;
+
+    // Validate required fields
+    if (!book_id || !title || !author || !category || !total_copies || !available_copies || !req.file) {
+      return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Save file path for the uploaded image
-    const book_photo = req.file ? `/uploads/${req.file.filename}` : '/uploads/no_img.jpeg'; // Default image if no file uploaded
-
-    // Check if the book already exists
-    let book = await Book.findOne({ title: book_title, author: book_author, category, publication_year });
-
-    if (!book) {
-      const totalBooks = await Book.countDocuments();
-      book = new Book({
-        book_id: totalBooks + 1,
-        title: book_title,
-        author: book_author,
-        publication_year: Number(publication_year),
-        category,
-        total_copies: 1,
-        available_copies: 1,
-        book_photo
-      });
-
-      await book.save(); // Save the new book
+    // Check if book already exists
+    const existingBook = await Book.findOne({ book_id });
+    if (existingBook) {
+      return res.status(400).json({ error: 'Book ID already exists' });
     }
 
-    // Find the user making the donation
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    // Store the MongoDB ID of the uploaded file
+    const book_photo = req.file.id;
 
-    // Create a new donation
-    const totalDonations = await BookDonation.countDocuments();
-    const donation_id = totalDonations + 1;
-
-    const newDonation = new BookDonation({
-      donation_id,
-      user_id: req.user._id,
-      user_name: req.user.username,
-      book_id: book._id,
-      book_title,
-      book_author,
-      book_condition,
+    // Create new book
+    const book = new Book({
+      book_id,
+      title,
+      author,
       category,
-      publication_year: Number(publication_year),
-      book_photo,
-      donation_status: 'pending',
-      donation_date: new Date()
+      publication_year,
+      total_copies,
+      available_copies,
+      book_photo
     });
 
-    await newDonation.save();
-
-    return res.status(201).json({ 
-      success: true, 
-      message: 'Donation created successfully!', 
-      donation: newDonation 
+    await book.save();
+    res.status(201).json({
+      message: 'Book created successfully',
+      book: {
+        book_id: book.book_id,
+        title: book.title,
+        author: book.author,
+        category: book.category,
+        publication_year: book.publication_year,
+        total_copies: book.total_copies,
+        available_copies: book.available_copies,
+        book_photo: book.book_photo
+      },
+      imageUrl: `/api/books/photo/id/${book.book_photo}`
     });
   } catch (error) {
-    console.error('Error creating donation:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Failed to create donation', 
-      details: error.message 
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.uploadFile = (req, res) => {
+// DEBUG: List all files in the File collection
+  const { upload } = require('../middleware/gridfs-setup');
+  
+  upload.single('file')(req, res, async (err) => {
+    if (err) return res.status(500).json({ error: 'File upload failed', details: err.message });
+
+    console.log(req.file); // Debugging - check if req.file exists
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    res.json({ 
+      fileId: req.file.id,
+      success: true,
+      message: 'File uploaded successfully' 
     });
+  });
+};
+
+
+exports.listAllFiles = async (req, res) => {
+  try {
+    const files = await mongoose.model('File').find().sort({uploadDate: -1}).limit(10);
+    
+    const fileInfo = files.map(file => ({
+      id: file._id,
+      filename: file.filename,
+      originalname: file.originalname,
+      path: file.path,
+      mimetype: file.mimetype,
+      size: file.size,
+      uploadDate: file.uploadDate
+    }));
+    
+    res.status(200).json({
+      count: fileInfo.length,
+      files: fileInfo
+    });
+  } catch (error) {
+    console.error('Error listing files:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Improved proxy image function with better error handling
+exports.proxyImage = async (req, res) => {
+  try {
+    const id = req.query.id;
+    
+    console.log(`proxyImage called for ID: ${id}`);
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log(`Invalid ObjectId format: ${id}`);
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
+    
+    // Find the file by ID
+    const File = mongoose.model('File');
+    const file = await File.findById(id);
+
+    if (!file) {
+      console.log(`File not found in database for ID: ${id}`);
+      
+      // Try to serve a default image
+      const defaultPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
+      if (fs.existsSync(defaultPath)) {
+        console.log('Serving default image instead');
+        res.set('Content-Type', 'image/jpeg');
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+        return fs.createReadStream(defaultPath).pipe(res);
+      }
+      
+      return res.status(404).json({ error: 'File not found in database' });
+    }
+
+    console.log(`File found: ${file.filename} (${file.mimetype})`);
+    
+    // Set CORS headers
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    
+    // Set the content type header
+    res.set('Content-Type', file.mimetype || 'application/octet-stream');
+    
+    // Create a read stream from the file path
+    const filePath = path.join(__dirname, '..', 'uploads', file.filename);
+    console.log(`Looking for file at: ${filePath}`);
+    
+    if (fs.existsSync(filePath)) {
+      console.log('File exists on disk, streaming...');
+      return fs.createReadStream(filePath).pipe(res);
+    } else {
+      console.log(`File missing from disk: ${filePath}`);
+      
+      // Try to serve a default image
+      const defaultPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
+      if (fs.existsSync(defaultPath)) {
+        console.log('Serving default image instead');
+        res.set('Content-Type', 'image/jpeg');
+        return fs.createReadStream(defaultPath).pipe(res);
+      }
+      
+      res.status(404).json({ error: 'File not found on disk' });
+    }
+  } catch (error) {
+    console.error('Error in proxyImage:', error);
+    res.status(500).json({ error: error.message });
   }
 };

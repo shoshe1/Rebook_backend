@@ -12,6 +12,8 @@ dotenv.config();
 const bookRoutes = require('./routes/bookRoutes');
 const userRoutes = require('./routes/userRoutes');
 const studyRoomRoutes = require('./routes/studtRoomRoutes'); // Fixed typo
+const notificationRoutes = require('./routes/notificationRoutes');
+const deliveryRoutes = require('./routes/deliveryRoutes'); 
 
 const app = express();
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -63,6 +65,8 @@ mongoose
 app.use('/api/books', bookRoutes); // Routes for books
 app.use('/api/users', userRoutes); // Routes for users
 app.use('/api/studyrooms', studyRoomRoutes); // Routes for study rooms
+app.use('/api', notificationRoutes);
+app.use('/', deliveryRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
