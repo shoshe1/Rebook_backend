@@ -119,7 +119,12 @@ exports.addUser = async (req, res) => {
 exports.getUserPhoto = async (req, res) => {
   try {
     const id = req.params.id;
-    
+
+    // Check if the ID is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid file ID' });
+    }
+
     // Convert string ID to ObjectId
     const fileId = new mongoose.Types.ObjectId(id);
     
@@ -135,31 +140,32 @@ exports.getUserPhoto = async (req, res) => {
     if (file.contentType.startsWith('image/')) {
       // Set the appropriate content type
       res.set('Content-Type', file.contentType);
-      
-      // Set CORS headers
-      res.header('Access-Control-Allow-Origin', '*');
+
+      // Set CORS headers (adjust to your front-end domain for security)
+      res.header('Access-Control-Allow-Origin', 'http://localhost:3000'); // Change this URL as needed
       res.header('Cross-Origin-Resource-Policy', 'cross-origin');
 
       // Create a read stream using the file ID
       const readstream = gfs.createReadStream(fileId);
-      
+
       // Handle stream errors
       readstream.on('error', (error) => {
         console.error('Error streaming file:', error);
         res.status(500).json({ error: 'Error streaming file' });
       });
-      
+
       // Pipe the file content to the response
       readstream.pipe(res);
     } else {
       console.log(`Not an image file. Content type: ${file.contentType}`);
-      res.status(404).json({ error: 'Not an image' });
+      return res.status(415).json({ error: 'File is not an image' }); // 415 is the status code for unsupported media type
     }
   } catch (error) {
     console.error('Error fetching user image:', error);
     res.status(500).json({ error: error.message });
-   }
+  }
 };
+
 
 // Updated getUserPhotoByUserId function
 exports.getUserPhotoByUserId = async (req, res) => {
