@@ -6,16 +6,17 @@ const path = require('path');
 require('dotenv').config();
 
 // Set up GridFS
-let gfs;
 let bucket;
 
 // Initialize connection once mongoose is connected
 mongoose.connection.once('open', () => {
-  // Initialize GridFS stream
-  bucket = new GridFSBucket(mongoose.connection.db, {
-    bucketName: 'uploads'
-  });
+  console.log('MongoDB connected, initializing GridFS...');
+  bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
   console.log('GridFS bucket initialized');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('Error connecting to MongoDB:', err);
 });
 
 // Set up multer storage engine for GridFS
@@ -26,7 +27,6 @@ const multerUpload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    // Accept images only
     if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
       return cb(new Error('Only image files are allowed!'), false);
     }
@@ -49,8 +49,9 @@ const upload = {
           return next();
         }
 
+        console.log('File received:', req.file);
+
         try {
-          // Create a unique filename
           const filename = crypto.randomBytes(16).toString('hex') + path.extname(req.file.originalname);
           
           // Create a stream to upload to GridFS
@@ -67,13 +68,11 @@ const upload = {
           writeStream.write(req.file.buffer);
           writeStream.end();
           
-          // Wait for the upload to finish
           await new Promise((resolve, reject) => {
             writeStream.on('finish', resolve);
             writeStream.on('error', reject);
           });
           
-          // Add the file id to req.file for the controller to use
           req.file.id = writeStream.id;
           req.file.filename = filename;
           
@@ -88,13 +87,10 @@ const upload = {
   }
 };
 
-// Create functions to interact with GridFS
+// Function to find a file by ID in GridFS
 const findFileById = async (id) => {
   try {
-    // Convert string ID to ObjectId if needed
     const _id = typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id;
-    
-    // Find the file in GridFS
     const files = await bucket.find({ _id }).toArray();
     return files[0] || null;
   } catch (err) {
@@ -103,9 +99,9 @@ const findFileById = async (id) => {
   }
 };
 
+// Function to create a read stream for a file in GridFS
 const createReadStream = (id) => {
   try {
-    // Convert string ID to ObjectId if needed
     const _id = typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id;
     return bucket.openDownloadStream(_id);
   } catch (err) {
@@ -114,7 +110,7 @@ const createReadStream = (id) => {
   }
 };
 
-// Create a wrapper for compatibility with your existing code
+// Interface for accessing GridFS functions
 const gfsInterface = {
   files: {
     findOne: findFileById
@@ -122,7 +118,6 @@ const gfsInterface = {
   createReadStream
 };
 
-// Export the interfaces
 module.exports = { 
   upload, 
   gfs: gfsInterface, 
