@@ -466,60 +466,23 @@ exports.createDonation = async (req, res) => {
   try {
     const { book_title, book_author, book_condition, category, publication_year } = req.body;
 
-
     if (!book_title || !book_author || !book_condition || !category || !publication_year) {
       return res.status(400).json({ error: 'All fields are required' });
     }
-
 
     if (!req.file) {
       return res.status(400).json({ error: 'Book photo is required' });
     }
 
-
     // Store the GridFS file ID
     const book_photo = req.file.id;
 
-
-    // Check if the book already exists
-    let book = await Book.findOne({
-      title: book_title,
-      author: book_author,
-      category,
-      publication_year
-    });
-
-
-    if (!book) {
-      const totalBooks = await Book.countDocuments();
-      book = new Book({
-        book_id: totalBooks + 1,
-        title: book_title,
-        author: book_author,
-        publication_year: Number(publication_year),
-        category,
-        total_copies: 1,
-        available_copies: 1,
-        book_photo
-      });
-
-
-      await book.save();
-    } else {
-      // If the book exists, increment copies
-      book.total_copies += 1;
-      book.available_copies += 1;
-      await book.save();
-    }
-
-
-    // Create new donation record
+    // Create new donation record without altering the books inventory
     const totalDonations = await BookDonation.countDocuments();
     const newDonation = new BookDonation({
       donation_id: totalDonations + 1,
       user_id: req.user._id,
       user_name: req.user.username,
-      book_id: book._id,
       book_title,
       book_author,
       book_condition,
@@ -530,9 +493,7 @@ exports.createDonation = async (req, res) => {
       donation_date: new Date()
     });
 
-
     await newDonation.save();
-
 
     return res.status(201).json({
       success: true,
@@ -670,13 +631,14 @@ exports.getUsersBorrowingRequests = async (req, res) => {
 exports.getpendingdonationrequests = async (req, res) => {
   try {
     const donations = await BookDonation.find({ donation_status: 'pending' })
-      .populate('book_id', 'title author')
+      .populate('donation_id', 'title author')
       .populate('user_id', 'username' );
     res.status(200).json(donations);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 exports.acceptDonationRequest = async (req, res) => {
   try {
