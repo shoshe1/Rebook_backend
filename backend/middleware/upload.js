@@ -1,32 +1,40 @@
-// middleware/upload.js
 const multer = require('multer');
+const { GridFsStorage } = require('multer-gridfs-storage');
 const path = require('path');
-const fs = require('fs');
+const dotenv = require('dotenv');
 
-// Use memory storage to process files as Buffer objects
-const storage = multer.memoryStorage();
+dotenv.config();
 
-// Check file type
-const fileFilter = (req, file, cb) => {
-  // Allowed file types
-  const filetypes = /jpeg|jpg|png|gif/;
-  // Check extension
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  // Check mime type
-  const mimetype = filetypes.test(file.mimetype);
+const mongoURI = process.env.MONGODB_URI;
 
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Only images are allowed!'));
+// Configure GridFS storage
+const storage = new GridFsStorage({
+  url: mongoURI,
+  file: (req, file) => {
+    return new Promise((resolve, reject) => {
+      // Allowed file types
+      const filetypes = /jpeg|jpg|png|gif/;
+      const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = filetypes.test(file.mimetype);
+
+      if (mimetype && extname) {
+        const filename = `${Date.now()}-${file.originalname}`;
+        resolve({
+          filename: filename,
+          bucketName: 'uploads', // Bucket name in MongoDB
+          metadata: { originalname: file.originalname }
+        });
+      } else {
+        reject(new Error('Only images are allowed!'));
+      }
+    });
   }
-};
+});
 
 // Initialize Multer
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: fileFilter
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
 module.exports = upload;
