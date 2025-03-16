@@ -4,7 +4,6 @@ const bookDonationSchema = new mongoose.Schema({
   donation_id: { type: Number, required: true, unique: true },
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   user_name: { type: String, required: true },
-  book_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Book', required: true },
   book_title: { type: String, required: true },
   book_author: { type: String, required: true },
   donation_date: { type: Date, default: Date.now },
