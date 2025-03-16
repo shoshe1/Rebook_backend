@@ -477,12 +477,42 @@ exports.createDonation = async (req, res) => {
     // Store the GridFS file ID
     const book_photo = req.file.id;
 
+    // Check if the book already exists
+    let book = await Book.findOne({ 
+      title: book_title, 
+      author: book_author, 
+      category, 
+      publication_year 
+    });
+
+    if (!book) {
+      const totalBooks = await Book.countDocuments();
+      book = new Book({
+        book_id: totalBooks + 1,
+        title: book_title,
+        author: book_author,
+        publication_year: Number(publication_year),
+        category,
+        total_copies: 1,
+        available_copies: 1,
+        book_photo
+      });
+
+      await book.save();
+    } else {
+      // If the book exists, increment copies
+      book.total_copies += 1;
+      book.available_copies += 1;
+      await book.save();
+    }
+
     // Create new donation record
     const totalDonations = await BookDonation.countDocuments();
     const newDonation = new BookDonation({
       donation_id: totalDonations + 1,
       user_id: req.user._id,
       user_name: req.user.username,
+      book_id: book._id,
       book_title,
       book_author,
       book_condition,
