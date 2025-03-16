@@ -7,14 +7,12 @@ require('dotenv').config();
 // MongoDB Connection URI
 const mongoURI = process.env.MONGODB_URI;
 
-// Create MongoDB connection
-const conn = mongoose.createConnection(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+// Use the existing mongoose connection instead of creating a new one
+const conn = mongoose.connection;
 
 let gfs;
-conn.once('open', () => {
+// Initialize gfs after mongoose connection is ready
+mongoose.connection.once('open', () => {
   gfs = Grid(conn.db, mongoose.mongo);
   gfs.collection('uploads'); // Collection name in MongoDB
   console.log('GridFS initialized');
@@ -23,13 +21,18 @@ conn.once('open', () => {
 // Setup GridFS storage for multer
 const storage = new GridFsStorage({
   url: mongoURI,
-  options: { useNewUrlParser: true, useUnifiedTopology: true },
+  // Remove deprecated options
   file: (req, file) => {
-    return {
-      filename: `${Date.now()}-${file.originalname}`,
-      bucketName: 'uploads', // Matches GridFS collection name
-    };
-  },
+    return new Promise((resolve, reject) => {
+      const filename = `${Date.now()}-${file.originalname}`;
+      const fileInfo = {
+        filename: filename,
+        bucketName: 'uploads', // Matches GridFS collection name
+        metadata: { originalname: file.originalname }
+      };
+      resolve(fileInfo);
+    });
+  }
 });
 
 const upload = multer({ storage });
