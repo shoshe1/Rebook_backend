@@ -61,29 +61,20 @@ exports.getUserById = async (req, res) => {
 
 exports.addUser = async (req, res) => {
   try {
-    console.log('Request body:', req.body); // Debugging statement
-    console.log('Request file:', req.file); // Debugging statement
-
     const { username, password, user_type } = req.body;
 
-    // Validate required fields
     if (!username || !password || !user_type || !req.file) {
       return res.status(400).json({ error: 'Username, password, user type, and user photo are required' });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 8);
+    const user_photo = req.file.filename; // Store filename instead of local file path
 
-    // Store the GridFS file ID
-    const user_photo = req.file.id;
-
-    // Create new user
     const user = new User({
       user_id: await User.countDocuments() + 1,
       username,
@@ -94,18 +85,16 @@ exports.addUser = async (req, res) => {
     });
 
     await user.save();
-    const token = jwt.sign({ _id: user._id, user_type: user.user_type }, process.env.JWT_SECRET, { expiresIn: '24h' }); // Token expires in 24 hours
+
     res.status(201).json({
       message: 'User created successfully',
       user: {
         user_id: user.user_id,
         username: user.username,
         user_type: user.user_type,
-        user_number: user.user_number,
-        user_photo: user.user_photo // Include user_photo ID in the response
+        user_photo: user_photo
       },
-      token,
-      imageUrl: `/api/users/photo/${user.user_photo}`
+      imageUrl: `/api/users/photo/${user_photo}` // Update URL to match new retrieval method
     });
   } catch (error) {
     console.error('Error creating user:', error);
@@ -113,29 +102,25 @@ exports.addUser = async (req, res) => {
   }
 };
 
+
 // Add a method to get user photos
 exports.getUserPhoto = async (req, res) => {
   try {
-    const id = req.params.id;
-    
-    // Find the file by ID
-    const file = await gfs.files.findOne({ _id: new mongoose.Types.ObjectId(id) });
+    const filename = req.params.filename;
+    const file = await gfs.files.findOne({ filename });
 
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    if (file.contentType === 'image/jpeg' || file.contentType === 'image/png' || file.contentType === 'image/gif') {
-      const readstream = gfs.createReadStream(file.filename);
-      readstream.pipe(res);
-    } else {
-      res.status(404).json({ error: 'Not an image' });
-    }
+    const readstream = gfs.createReadStream(file.filename);
+    readstream.pipe(res);
   } catch (error) {
     console.error('Error fetching user image:', error);
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Add this new controller method
 exports.getUserPhotoByUserId = async (req, res) => {
