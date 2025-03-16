@@ -466,24 +466,29 @@ exports.createDonation = async (req, res) => {
   try {
     const { book_title, book_author, book_condition, category, publication_year } = req.body;
 
+
     if (!book_title || !book_author || !book_condition || !category || !publication_year) {
       return res.status(400).json({ error: 'All fields are required' });
     }
+
 
     if (!req.file) {
       return res.status(400).json({ error: 'Book photo is required' });
     }
 
+
     // Store the GridFS file ID
     const book_photo = req.file.id;
 
+
     // Check if the book already exists
-    let book = await Book.findOne({ 
-      title: book_title, 
-      author: book_author, 
-      category, 
-      publication_year 
+    let book = await Book.findOne({
+      title: book_title,
+      author: book_author,
+      category,
+      publication_year
     });
+
 
     if (!book) {
       const totalBooks = await Book.countDocuments();
@@ -498,6 +503,7 @@ exports.createDonation = async (req, res) => {
         book_photo
       });
 
+
       await book.save();
     } else {
       // If the book exists, increment copies
@@ -505,6 +511,7 @@ exports.createDonation = async (req, res) => {
       book.available_copies += 1;
       await book.save();
     }
+
 
     // Create new donation record
     const totalDonations = await BookDonation.countDocuments();
@@ -523,7 +530,9 @@ exports.createDonation = async (req, res) => {
       donation_date: new Date()
     });
 
+
     await newDonation.save();
+
 
     return res.status(201).json({
       success: true,
@@ -540,6 +549,7 @@ exports.createDonation = async (req, res) => {
     });
   }
 };
+
 
 exports.getAllDonations = async (req, res) => {
   try {
