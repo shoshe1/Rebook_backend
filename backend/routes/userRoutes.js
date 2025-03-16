@@ -29,7 +29,7 @@ router.get('/photo-url/:user_id', async (req, res) => {
     const photo = user.user_photo;
 
     // Return URLs to access the photo in different ways
-    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const baseUrl = process.env.BASE_URL || 'https://rebook-backend-ldmy.onrender.com';
     res.status(200).json({ 
       photo_id: photo,
       direct_photo_url: `${baseUrl}/api/users/photo/${photo}`,
