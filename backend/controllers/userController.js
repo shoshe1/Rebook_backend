@@ -59,119 +59,170 @@ exports.getUserById = async (req, res) => {
 };
 
 
+// Updated addUser function to work with GridFS
 exports.addUser = async (req, res) => {
   try {
+    console.log('Request body:', req.body); // Debugging statement
+    console.log('Request file:', req.file); // Debugging statement
+
     const { username, password, user_type } = req.body;
 
-    if (!username || !password || !user_type || !req.file) {
-      return res.status(400).json({ error: 'Username, password, user type, and user photo are required' });
+    // Validate required fields
+    if (!username || !password || !user_type) {
+      return res.status(400).json({ error: 'Username, password, and user type are required' });
     }
 
+    // Check if user already exists
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 8);
-    const user_photo = req.file.filename; // Store filename instead of local file path
 
+    // Create new user
     const user = new User({
       user_id: await User.countDocuments() + 1,
       username,
       user_number: Math.floor(Math.random() * 100000),
       password: hashedPassword,
-      user_type,
-      user_photo
+      user_type
     });
 
-    await user.save();
+    // Store the GridFS file ID if a file was uploaded
+    if (req.file && req.file.id) {
+      console.log('Saving photo ID to user:', req.file.id);
+      user.user_photo = req.file.id;
+    }
 
+    await user.save();
+    const token = jwt.sign({ _id: user._id, user_type: user.user_type }, process.env.JWT_SECRET, { expiresIn: '24h' }); // Token expires in 24 hours
     res.status(201).json({
       message: 'User created successfully',
       user: {
         user_id: user.user_id,
         username: user.username,
         user_type: user.user_type,
-        user_photo: user_photo
+        user_number: user.user_number,
+        user_photo: user.user_photo // Include user_photo ID in the response
       },
-      imageUrl: `/api/users/photo/${user_photo}` // Update URL to match new retrieval method
+      token,
+      imageUrl: user.user_photo ? `/api/users/photo/${user.user_photo}` : null
     });
   } catch (error) {
     console.error('Error creating user:', error);
     res.status(500).json({ error: error.message });
   }
 };
-
-
 // Add a method to get user photos
 exports.getUserPhoto = async (req, res) => {
   try {
-    const filename = req.params.filename;
-    const file = await gfs.files.findOne({ filename });
+    const id = req.params.id;
+    
+    // Convert string ID to ObjectId
+    const fileId = new mongoose.Types.ObjectId(id);
+    
+    // Find the file by ID
+    const file = await gfs.files.findOne({ _id: fileId });
 
     if (!file) {
+      console.log(`File not found for ID: ${id}`);
       return res.status(404).json({ error: 'File not found' });
     }
 
-    const readstream = gfs.createReadStream(file.filename);
-    readstream.pipe(res);
-  } catch (error) {
-    console.error('Error fetching user image:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-
-// Add this new controller method
-exports.getUserPhotoByUserId = async (req, res) => {
-  try {
-      const userId = parseInt(req.params.user_id, 10);
-      console.log(`Getting photo for user ID: ${userId}`);
-
-      if (isNaN(userId)) {
-          console.log('Invalid user ID format');
-          return res.status(400).json({ error: 'Invalid user ID' });
-      }
-
-      // Find the user
-      const user = await User.findOne({ user_id: userId });
-
-      if (!user) {
-          console.log(`User not found for ID: ${userId}`);
-          return res.status(404).json({ error: 'User not found' });
-      }
-
-      if (!user.user_photo) {
-          console.log(`No photo ID found for user: ${userId}`);
-          return res.status(404).json({ error: 'User photo not found' });
-      }
-
-      console.log(`Found user photo ID: ${user.user_photo} for user: ${userId}`);
-
-      // Use gfs to fetch the file by ID
-      const photoId = user.user_photo;
-      const file = await gfs.files.findOne({ _id: new mongoose.Types.ObjectId(photoId) });
-
-      if (!file) {
-          console.log(`Photo file not found in database for ID: ${photoId}`);
-          return res.status(404).json({ error: 'Photo file not found' });
-      }
-
-      console.log(`Found file record: ${file.filename} (${file.mimetype})`);
-
+    // Check if it's an image file
+    if (file.contentType.startsWith('image/')) {
+      // Set the appropriate content type
+      res.set('Content-Type', file.contentType);
+      
       // Set CORS headers
       res.header('Access-Control-Allow-Origin', '*');
       res.header('Cross-Origin-Resource-Policy', 'cross-origin');
 
-      // Set the content type header
-      res.set('Content-Type', file.mimetype || 'application/octet-stream');
-
-      // Create a read stream from the GridFS bucket
-      const readstream = gfs.createReadStream(file.filename);
+      // Create a read stream using the file ID
+      const readstream = gfs.createReadStream(fileId);
+      
+      // Handle stream errors
+      readstream.on('error', (error) => {
+        console.error('Error streaming file:', error);
+        res.status(500).json({ error: 'Error streaming file' });
+      });
+      
+      // Pipe the file content to the response
       readstream.pipe(res);
+    } else {
+      console.log(`Not an image file. Content type: ${file.contentType}`);
+      res.status(404).json({ error: 'Not an image' });
+    }
   } catch (error) {
-      console.error('Error fetching user image by user ID:', error);
-      res.status(500).json({ error: error.message });
+    console.error('Error fetching user image:', error);
+    res.status(500).json({ error: error.message });
+   }
+};
+
+// Updated getUserPhotoByUserId function
+exports.getUserPhotoByUserId = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.user_id, 10);
+    console.log(`Getting photo for user ID: ${userId}`);
+
+    if (isNaN(userId)) {
+      console.log('Invalid user ID format');
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Find the user
+    const user = await User.findOne({ user_id: userId });
+
+    if (!user) {
+      console.log(`User not found for ID: ${userId}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.user_photo) {
+      console.log(`No photo ID found for user: ${userId}`);
+      return res.status(404).json({ error: 'User photo not found' });
+    }
+
+    console.log(`Found user photo ID: ${user.user_photo} for user: ${userId}`);
+
+    // Convert string ID to ObjectId if needed
+    const photoId = typeof user.user_photo === 'string' 
+      ? new mongoose.Types.ObjectId(user.user_photo) 
+      : user.user_photo;
+
+    // Use gfs to fetch the file by ID
+    const file = await gfs.files.findOne({ _id: photoId });
+
+    if (!file) {
+      console.log(`Photo file not found in database for ID: ${photoId}`);
+      return res.status(404).json({ error: 'Photo file not found' });
+    }
+
+    console.log(`Found file record: ${file.filename} (${file.contentType})`);
+
+    // Set CORS headers
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+
+    // Set the content type header
+    res.set('Content-Type', file.contentType || 'application/octet-stream');
+
+    // Create a read stream using the file ID
+    const readstream = gfs.createReadStream(photoId);
+    
+    // Handle stream errors
+    readstream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      res.status(500).json({ error: 'Error streaming file' });
+    });
+    
+    // Pipe the file content to the response
+    readstream.pipe(res);
+  } catch (error) {
+    console.error('Error fetching user image by user ID:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -310,7 +361,7 @@ exports.getCurrentUserId = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+    //
     // Return the user_id
     res.status(200).json({ user_id: user.user_id });
   } catch (error) {
