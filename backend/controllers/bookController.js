@@ -621,7 +621,7 @@ exports.getUsersBorrowingRequests = async (req, res) => {
   try {
     const borrowRequests = await BookBorrowing.find({ borrowing_status: 'pending' })
       .populate('book_id', 'title author')
-      .populate('user_id', 'username user_id user_type user_number');
+      .populate('user_id', 'user_id ');
     res.status(200).json(borrowRequests);
   } catch (error) {
     res.status(500).json({ error: error.message });
