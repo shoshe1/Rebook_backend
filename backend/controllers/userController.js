@@ -149,12 +149,20 @@ exports.getUserPhotoByUserId = async (req, res) => {
 exports.getUsers = async (req, res) => {
   try {
     if (!req.user) return sendResponse(res, 401, false, 'Unauthorized access');
+
     const users = await User.find({ user_type: 'customer' });
+
+    // Ensure the response is in JSON format
+    res.setHeader('Content-Type', 'application/json');
+    
     sendResponse(res, 200, true, 'Users retrieved successfully', users);
   } catch (error) {
+    // Ensure the error response is in JSON format
+    res.setHeader('Content-Type', 'application/json');
     sendResponse(res, 500, false, error.message);
   }
 };
+
 // i dont know if i need to adjust this 
 exports.getUserById = async (req, res) => {
   try {
