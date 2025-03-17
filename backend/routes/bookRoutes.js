@@ -11,6 +11,12 @@ router.get('/photo-by-book-id/:book_id', bookController.getBookPhotoByBookId);
 router.get('/image/:book_id', auth, bookController.getimagebyid);
 router.get('/get_total_books', auth, bookController.getTotalBooks);
 router.get('/get_returned_books', auth, bookController.getAllreturnedBorrowingsByuserId);
+router.get('/borrow-requests/search',bookController.searchBorrowRequests);
+router.get('/donations/searchdonations', auth, bookController.searchDonations);
+router.get('/borrowings/searchManageRequests',bookController.searchManageRequests);
+router.get('/search', auth,  bookController.searchBooks);
+
+
 
 // Donations
 router.get('/donations', auth, verifyRole('librarian'), bookController.getAllDonations);
