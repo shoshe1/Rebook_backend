@@ -7,9 +7,11 @@ const verifyRole = require('../middleware/verifyRole');
 const { upload } = require('../middleware/gridfs-setup');
 const cors = require('cors');
 
-// User photo routes
-router.get('/photo/:id',cors(), userController.getUserPhoto);
-router.get('/photo-by-user-id/:user_id',cors(), userController.getUserPhotoByUserId);
+// Get user photo by photo ID
+router.get('/photo/:id', userController.getUserPhoto);
+
+// Get user photo by user ID
+router.get('/photo-by-user-id/:user_id', userController.getUserPhotoByUserId);
 
 // Add this new route below your other photo routes
 router.get('/photo-url/:user_id', async (req, res) => {
@@ -69,7 +71,21 @@ router.get('/test-photos', async (req, res) => {
 });
 
 // Create account with file upload using GridFS
-router.post('/create-account', upload.single('user_photo'), userController.addUser);
+router.post('/create-account', upload.single('user_photo'), (req, res, next) => {
+  console.log('File upload debug:');
+  console.log('File received:', req.file ? 'Yes' : 'No');
+  if (req.file) {
+    console.log('File details:', {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      path: req.file.path
+    });
+  }
+  console.log('Body:', req.body);
+  next();
+}, userController.addUser);
 
 router.get('/', auth, verifyRole('librarian'), userController.getUsers);
 router.get('/:user_id', auth, userController.getUserById);
@@ -78,8 +94,20 @@ router.post('/logout', auth, userController.log_out);
 router.delete('/:user_id', auth, verifyRole('librarian'), userController.deleteUser);
 router.get('/:user_id/donations', auth, userController.user_donations_history);
 router.get('/:user_id/borrowings', auth, userController.user_borrowing_history);
-
-// Route to get current user's ID
 router.get('/me/id', auth, userController.getCurrentUserId);
-
+router.get('/test-gridfs-status', async (req, res) => {
+  try {
+    const bucket = getBucket();
+    if (!bucket) {
+      return res.status(500).json({ success: false, message: 'GridFS bucket not initialized' });
+    }
+    return res.status(200).json({ 
+      success: true, 
+      message: 'GridFS is initialized',
+      connectionState: mongoose.connection.readyState
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
 module.exports = router;
