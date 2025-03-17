@@ -101,9 +101,12 @@ exports.createBook = async (req, res) => {
       return res.status(400).json({ error: 'Book photo is required' });
     }
 
-    // Store the GridFS file ID
-    const book_photo = req.file.id;
-
+    // Upload file to GridFS
+    const fileId = await uploadToGridFS(
+      req.file.path,
+      req.file.originalname,
+      req.file.mimetype
+    );
     let book = await Book.findOne({ title, author, category, publication_year });
 
     if (!book) {
@@ -116,7 +119,7 @@ exports.createBook = async (req, res) => {
         category,
         total_copies: 1,
         available_copies: 1,
-        book_photo
+        book_photo: fileId.toString()
       });
 
       await book.save();
@@ -124,8 +127,8 @@ exports.createBook = async (req, res) => {
       book.total_copies += 1;
       book.available_copies += 1;
       // Only update photo if a new one is provided
-      if (book_photo) {
-        book.book_photo = book_photo;
+      if (fileId) {
+        book.book_photo = fileId.toString();
       }
       await book.save();
     }
@@ -134,7 +137,7 @@ exports.createBook = async (req, res) => {
       success: true,
       message: 'Book created successfully!',
       book,
-      imageUrl: `/api/books/photo/id/${book.book_photo}`
+      imageUrl: `/api/books/photo/${book.book_photo}`
     });
   } catch (error) {
     console.error('Error creating book:', error);
@@ -149,78 +152,85 @@ exports.createBook = async (req, res) => {
 // Get book photo by filename
 exports.getBookPhoto = async (req, res) => {
   try {
-    const filename = req.params.filename;
-    const file = await gfs.files.findOne({ filename });
-
-    if (!file || file.length === 0) {
-      return res.status(404).json({ error: 'No file exists' });
+    const fileId = req.params.id;
+    console.log('Attempting to get book image with ID:', fileId);
+    
+    // Convert string to ObjectId
+    let objectId;
+    try {
+      objectId = new mongoose.Types.ObjectId(fileId);
+    } catch (err) {
+      console.error('Invalid ObjectId format:', fileId);
+      return res.status(400).json({ error: 'Invalid file ID format' });
     }
-
-    if (file.contentType === 'image/jpeg' || file.contentType === 'image/png' || file.contentType === 'image/gif') {
-      // Set the content type header
-      res.set('Content-Type', file.contentType);
-      
-      // Create a read stream and pipe it to the response
-      const readstream = gfs.createReadStream(file.filename);
-      readstream.pipe(res);
+    
+    // Get bucket
+    const bucket = getBucket();
+    if (!bucket) {
+      throw new Error('GridFS bucket not initialized');
+    }
+    
+    // First, get the file metadata to determine content type
+    const db = mongoose.connection.db;
+    const filesCollection = db.collection('uploads.files');
+    const fileInfo = await filesCollection.findOne({ _id: objectId });
+    
+    if (!fileInfo) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Set proper Content-Type header
+    if (fileInfo.metadata && fileInfo.metadata.mimetype) {
+      res.set('Content-Type', fileInfo.metadata.mimetype);
     } else {
-      res.status(404).json({ error: 'Not an image' });
+      // Fallback to a generic image type
+      res.set('Content-Type', 'image/jpeg');
     }
+    
+    // Set other important headers
+    res.set('Content-Disposition', 'inline');
+    res.set('Cache-Control', 'public, max-age=31557600'); // Cache for a year
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    
+    // Create a download stream
+    const downloadStream = bucket.openDownloadStream(objectId);
+    
+    // Handle errors
+    downloadStream.on('error', (error) => {
+      console.error('Error in download stream:', error);
+      // The response has already started, can't send an error response now
+    });
+    
+    // Pipe the file data to the response
+    downloadStream.pipe(res);
+    
   } catch (error) {
-    console.error('Error fetching image by filename:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error getting book photo:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 
 // Get book photo by ID - with improved error handling and CORS
-exports.getBookPhotoById = async (req, res) => {
+exports.getBookPhotoByBookId = async (req, res) => {
   try {
-    const id = req.params.id;
+    const bookId = parseInt(req.params.book_id, 10);
+    console.log('Looking for photo for book ID:', bookId);
     
-    // Set CORS headers for all responses
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    const book = await Book.findOne({ book_id: bookId });
+    console.log('Book found:', book ? 'Yes' : 'No');
+    console.log('Book photo field:', book ? book.book_photo : 'N/A');
     
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      console.error('Invalid ObjectId format:', id);
-      return res.status(400).json({ error: 'Invalid ID format' });
+    if (!book || !book.book_photo) {
+      return res.status(404).json({ error: 'Book photo not found' });
     }
     
-    // Find the file by ID
-    const File = mongoose.model('File');
-    const file = await File.findById(id);
-
-    if (!file) {
-      console.error('File not found in database:', id);
-      // Return a default image instead of an error
-      const defaultPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
-      if (fs.existsSync(defaultPath)) {
-        res.set('Content-Type', 'image/jpeg');
-        return fs.createReadStream(defaultPath).pipe(res);
-      }
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    // Set content type based on the file's mimetype
-    res.set('Content-Type', file.mimetype || 'application/octet-stream');
-    
-    // Create a read stream from the file path
-    const filePath = path.join(__dirname, '..', 'uploads', file.filename);
-    
-    if (fs.existsSync(filePath)) {
-      return fs.createReadStream(filePath).pipe(res);
-    } else {
-      console.error('File exists in database but not on disk:', filePath);
-      // Return a default image instead of an error
-      const defaultPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
-      if (fs.existsSync(defaultPath)) {
-        res.set('Content-Type', 'image/jpeg');
-        return fs.createReadStream(defaultPath).pipe(res);
-      }
-      return res.status(404).json({ error: 'File not found on disk' });
-    }
+    console.log('Redirecting to photo endpoint with ID:', book.book_photo);
+    res.redirect(`/api/books/photo/${book.book_photo}`);
   } catch (error) {
-    console.error('Error in getBookPhotoById:', error);
+    console.error('Error getting book photo by ID:', error);
     res.status(500).json({ error: error.message });
   }
 };
