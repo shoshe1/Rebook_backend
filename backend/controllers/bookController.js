@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const BookBorrowing = require('../models/BookBorrowing');
 const User = require('../models/User');  // Fixed import
 const BookDonation = require('../models/BookDonation');
-const { gfs, Attachment } = require('../middleware/gridfs-setup');
+const { uploadToGridFS, getBucket } = require('../middleware/gridfs-setup'); // Correctly import uploadToGridFS
 const { ObjectId } = mongoose.Types;
 const fs = require('fs');
 const path = require('path');
@@ -24,7 +24,7 @@ const fileToBase64 = (filePath, mimetype) => {
   }
 };
 // bookController.js
-//
+
 // Function to handle searching books by title or author
 exports.searchBooks = async (req, res) => {
     const query = req.query.query; // Get search query from the query string
@@ -107,6 +107,7 @@ exports.createBook = async (req, res) => {
       req.file.originalname,
       req.file.mimetype
     );
+
     let book = await Book.findOne({ title, author, category, publication_year });
 
     if (!book) {
@@ -521,7 +522,6 @@ exports.createDonation = async (req, res) => {
   }
 };
 
-
 exports.getAllDonations = async (req, res) => {
   try {
     const donations = await BookDonation.find();
@@ -631,24 +631,23 @@ exports.getUsersBorrowingRequests = async (req, res) => {
   try {
     const borrowRequests = await BookBorrowing.find({ borrowing_status: 'pending' })
       .populate('book_id', 'title author')
-      .populate('user_id', 'user_id ');
+      .populate('user_id', 'username');
     res.status(200).json(borrowRequests);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+    res.status(500).json({ error: error.message });
+  }
 };
 
 exports.getpendingdonationrequests = async (req, res) => {
   try {
     const donations = await BookDonation.find({ donation_status: 'pending' })
-      .populate('donation_id', 'title author')
+      .populate('book_id', 'title author')
       .populate('user_id', 'username' );
     res.status(200).json(donations);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 exports.acceptDonationRequest = async (req, res) => {
   try {
