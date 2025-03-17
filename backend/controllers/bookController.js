@@ -640,22 +640,19 @@ exports.getUsersBorrowingRequests = async (req, res) => {
 
 exports.getpendingdonationrequests = async (req, res) => {
   try {
-    const donations = await BookDonation.find({ donation_status: 'pending' })
-      .populate('book_id', 'title author')
-      .populate('user_id', 'username');
+    console.log('Fetching pending donation requests...');
 
-    const formattedDonations = donations.map(donation => ({
-      donation_id: donation._id,
-      book_title: donation.book_id?.title || 'Unknown',
-      book_author: donation.book_id?.author || 'Unknown',
-      book_condition: donation.book_condition || 'Unknown',
-      user_name: donation.user_id?.username || 'Unknown'
-    }));
+    const pendingDonations = await BookDonation.find({ donation_status: 'pending' })
+      .populate({ path: 'user_id', select: 'username', strictPopulate: false });
 
-    res.status(200).json(formattedDonations);
+    console.log('Pending Donations Data:', JSON.stringify(pendingDonations, null, 2)); 
+
+    res.setHeader('Content-Type', 'application/json'); // ✅ Explicitly set JSON response type
+    res.status(200).json({ success: true, data: pendingDonations });
   } catch (error) {
-    console.error("Error fetching pending donations:", error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching pending donation requests:', error);
+    res.setHeader('Content-Type', 'application/json'); // ✅ Ensure error response is also JSON
+    res.status(500).json({ success: false, error: error.message || 'Failed to fetch pending donation requests' });
   }
 };
 
