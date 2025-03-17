@@ -27,26 +27,179 @@ const fileToBase64 = (filePath, mimetype) => {
 
 // Function to handle searching books by title or author
 exports.searchBooks = async (req, res) => {
-    const query = req.query.query; // Get search query from the query string
-    if (!query) {
-        return res.status(400).json({ message: "Query parameter is required" });
+  const { query } = req.query;
+  console.log('Search query:', query);
+
+
+  try {
+    // Convert `query` to a number if possible
+    const queryNumber = !isNaN(query) ? Number(query) : null;
+
+
+    // Build the search conditions
+    const searchConditions = [];
+
+
+    if (query) {
+      searchConditions.push({ title: { $regex: query, $options: 'i' } });
+      searchConditions.push({ author: { $regex: query, $options: 'i' } });
     }
 
-    try {
-        // Search books by title or author (you can add more fields)
-        const books = await Book.find({
-            $or: [
-                { title: { $regex: query, $options: 'i' } },  // Case-insensitive search
-                { author: { $regex: query, $options: 'i' } }  // Case-insensitive search
-            ]
-        });
 
-        res.json(books);  // Return the matching books
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Failed to search books' });
+    if (queryNumber !== null) {
+      searchConditions.push({ book_id: queryNumber }); // Exact match for book_id
     }
+
+
+    // Perform search
+    const books = await Book.find({ $or: searchConditions });
+
+
+    console.log('Search results:', books);
+    res.json(books);
+  } catch (err) {
+    console.error('Search error:', err);
+    res.status(500).json({ message: err.message });
+  }
 };
+exports.searchBorrowRequests = async (req, res) => {
+  const { query } = req.query;
+  console.log('Search borrow requests query:', query);
+
+
+  try {
+      const queryNumber = !isNaN(query) ? Number(query) : null;
+
+
+      const borrowRequests = await BookBorrowing.find({ borrowing_status: "pending" })
+          .populate({
+              path: 'book_id',
+              select: 'title author'
+          })
+          .populate({
+              path: 'user_id',
+              select: 'username'
+          });
+
+
+      const queryLower = query.toLowerCase();
+
+
+      const filteredResults = borrowRequests.filter(request => {
+          const bookTitle = request.book_id?.title?.toLowerCase() || '';
+          const bookAuthor = request.book_id?.author?.toLowerCase() || '';
+          const username = request.user_id?.username?.toLowerCase() || '';
+          const borrowingId = request.borrowing_id ? String(request.borrowing_id) : '';
+
+
+          return (
+              bookTitle.includes(queryLower) ||
+              bookAuthor.includes(queryLower) ||  
+              username.includes(queryLower) ||
+              borrowingId.includes(query)
+          );
+      });
+
+
+      console.log('Filtered pending borrow requests:', filteredResults);
+      res.json(filteredResults);
+  } catch (err) {
+      console.error('Search error:', err);
+      res.status(500).json({ message: err.message });
+  }
+};
+exports.searchDonations = async (req, res) => {
+  const { query } = req.query;
+  console.log('Search donations query:', query);
+
+
+  try {
+    const queryNumber = !isNaN(query) ? Number(query) : null;
+
+
+    const donations = await BookDonation.find({ donation_status: 'pending' })
+      .populate({
+        path: 'user_id',
+        select: 'username',
+      });
+
+
+    const queryLower = query.toLowerCase();
+
+
+    const filteredResults = donations.filter(donation => {
+      const bookTitle = donation.book_title?.toLowerCase() || '';
+      const bookAuthor = donation.book_author?.toLowerCase() || '';
+      const username = donation.user_id?.username?.toLowerCase() || '';
+      const donationId = donation.donation_id ? String(donation.donation_id) : '';
+
+
+      return (
+        bookTitle.includes(queryLower) ||
+        bookAuthor.includes(queryLower) ||
+        username.includes(queryLower) ||
+        donationId.includes(query)
+      );
+    });
+
+
+    console.log('Filtered pending donations:', filteredResults);
+    res.json(filteredResults);
+  } catch (err) {
+    console.error('Search error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+exports.searchManageRequests = async (req, res) => {
+  const { query } = req.query;
+  console.log('Search borrow requests query:', query);
+
+
+  try {
+      const queryNumber = !isNaN(query) ? Number(query) : null;
+
+
+      // Find borrow requests with status 'borrowed'
+      const borrowRequests = await BookBorrowing.find({ borrowing_status: "borrowed" })
+          .populate({
+              path: 'book_id',
+              select: 'title author'
+          })
+          .populate({
+              path: 'user_id',
+              select: 'username'
+          });
+
+
+      const queryLower = query.toLowerCase();
+
+
+      const filteredResults = borrowRequests.filter(request => {
+          const bookTitle = request.book_id?.title?.toLowerCase() || '';
+          const bookAuthor = request.book_id?.author?.toLowerCase() || '';
+          const username = request.user_id?.username?.toLowerCase() || '';
+          const borrowingId = request.borrowing_id ? String(request.borrowing_id) : '';
+          const dueDate = request.due_date ? request.due_date.toISOString().slice(0, 10) : ''; // Format the due_date as "YYYY-MM-DD"
+
+
+          return (
+              bookTitle.includes(queryLower) ||
+              bookAuthor.includes(queryLower) ||  
+              username.includes(queryLower) ||
+              borrowingId.includes(query) ||
+              dueDate.includes(query) // Adding due date search logic
+          );
+      });
+
+
+      console.log('Filtered borrowed requests:', filteredResults);
+      res.json(filteredResults);
+  } catch (err) {
+      console.error('Search error:', err);
+      res.status(500).json({ message: err.message });
+  }
+};
+
 
 exports.uploadBookPhoto = (req, res) => {
   if (!req.file) {
