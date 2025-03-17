@@ -642,12 +642,24 @@ exports.getpendingdonationrequests = async (req, res) => {
   try {
     const donations = await BookDonation.find({ donation_status: 'pending' })
       .populate('book_id', 'title author')
-      .populate('user_id', 'username' );
-    res.status(200).json(donations);
+      .populate('user_id', 'username');
+
+    const formattedDonations = donations.map(donation => ({
+      donation_id: donation._id,
+      book_title: donation.book_id?.title || 'Unknown',
+      book_author: donation.book_id?.author || 'Unknown',
+      book_condition: donation.book_condition || 'Unknown',
+      user_name: donation.user_id?.username || 'Unknown'
+    }));
+
+    res.status(200).json(formattedDonations);
   } catch (error) {
+    console.error("Error fetching pending donations:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 exports.acceptDonationRequest = async (req, res) => {
   try {
