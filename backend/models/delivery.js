@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const deliverySchema = new mongoose.Schema({
   name: { type: String, required: true }, // User's name
-  userId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  userId: { type: String, required: true }, // User's ID
   address: { type: String, required: true },
   phoneNumber: { type: String, required: true },
   preferredDate: { type: Date, required: true },
