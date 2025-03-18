@@ -31,9 +31,6 @@ router.post('/api/delivery', async (req, res) => {
   }
 });
 
-
-
-
 // Fetch all deliveries for a user
 router.get('/api/delivery/user/:userId', async (req, res) => {
   try {
