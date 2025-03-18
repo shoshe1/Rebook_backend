@@ -76,7 +76,7 @@ app.use(
     ],
     credentials: true,
     exposedHeaders: ['Content-Disposition', 'Content-Type'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ,'PATCH']
   })
 );
 
