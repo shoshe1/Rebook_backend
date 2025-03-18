@@ -16,6 +16,7 @@ router.post('/api/delivery', async (req, res) => {
       preferredDate,
       latitude,
       longitude,
+      status:'on the way',
     });
 
     await newDelivery.save();
