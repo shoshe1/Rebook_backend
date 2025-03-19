@@ -93,8 +93,11 @@ router.get('/:user_id2', auth, userController.getUserById2);
 router.post('/login', userController.log_in);
 router.post('/logout', auth, userController.log_out);
 router.delete('/:user_id', auth, verifyRole('librarian'), userController.deleteUser);
-router.get('/:user_id/donations', auth, userController.user_donations_history);
 router.get('/:user_id/borrowings', auth, userController.user_borrowing_history);
+
+// Get user donations by user_id
+router.get('/:user_id/donations', auth, userController.user_donations_history);
+
 router.get('/me/id', auth, userController.getCurrentUserId);
 router.get('/test-gridfs-status', async (req, res) => {
   try {
