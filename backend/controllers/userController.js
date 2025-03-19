@@ -166,11 +166,17 @@ exports.getUsers = async (req, res) => {
 // i dont know if i need to adjust this 
 exports.getUserById = async (req, res) => {
   try {
+    console.log('Fetching user by ID:', req.params.user_id);
     const user = await User.findOne({ user_id: req.params.user_id });
-    if (!user) return sendResponse(res, 404, false, 'User not found');
-    sendResponse(res, 200, true, 'User retrieved successfully', user);
+    if (!user) {
+      console.log('User not found');
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    console.log('User found:', user);
+    res.status(200).json({ success: true, data: user });
   } catch (error) {
-    sendResponse(res, 500, false, error.message);
+    console.error('Error fetching user by ID:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
