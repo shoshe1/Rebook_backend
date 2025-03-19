@@ -247,9 +247,10 @@ exports.deleteUser = async (req, res) => {
   }
 };
 // i dont know if i need to adjust this
+
 exports.user_borrowing_history = async (req, res) => {
   try {
-    const userId = parseInt(req.params.user_id, 10); // Convert user_id to a number
+    const userId = mongoose.Types.ObjectId(req.params.user_id); // Convert user_id to ObjectId
     console.log('Fetching borrowings for user ID:', userId);
     const borrowings = await BookBorrowing.find({ user_id: userId });
     sendResponse(res, 200, true, 'Borrowing history retrieved successfully', borrowings);
