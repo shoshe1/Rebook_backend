@@ -247,19 +247,19 @@ exports.deleteUser = async (req, res) => {
   }
 };
 // i dont know if i need to adjust this
-exports.user_donations_history = async (req, res) => {
-  try {
-    const donations = await BookDonation.find({ user_id: req.params.user_id });
-    sendResponse(res, 200, true, 'Donations retrieved successfully', donations);
-  } catch (error) {
-    sendResponse(res, 500, false, error.message);
-  }
-};
-// i dont know if i need to adjust this
 exports.user_borrowing_history = async (req, res) => {
   try {
     const borrowings = await BookBorrowing.find({ user_id: req.params.user_id });
     sendResponse(res, 200, true, 'Borrowing history retrieved successfully', borrowings);
+  } catch (error) {
+    sendResponse(res, 500, false, error.message);
+  }
+};
+
+exports.user_donations_history = async (req, res) => {
+  try {
+    const donations = await BookDonation.find({ user_id: req.params.user_id });
+    sendResponse(res, 200, true, 'Donations history retrieved successfully', donations);
   } catch (error) {
     sendResponse(res, 500, false, error.message);
   }
