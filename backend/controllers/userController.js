@@ -179,7 +179,22 @@ exports.getUserById = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
+exports.getUserById2 = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.user_id, 10); // Convert user_id to a number
+    console.log('Fetching user by ID:', userId);
+    const user = await User.findOne({ user_id: userId });
+    if (!user) {
+      console.log('User not found');
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    console.log('User found:', user);
+    res.status(200).json({ success: true, data: user });
+  } catch (error) {
+    console.error('Error fetching user by ID:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 exports.log_in = async (req, res) => {
   try {
     const { username, password } = req.body;
