@@ -252,15 +252,10 @@ exports.user_borrowing_history = async (req, res) => {
     const userId = parseInt(req.params.user_id, 10); // Convert user_id to a number
     console.log('Fetching borrowings for user ID:', userId);
     const borrowings = await BookBorrowing.find({ user_id: userId });
-    if (!borrowings) {
-      console.log('No borrowings found for user ID:', userId);
-      return res.status(404).json({ success: false, message: 'No borrowings found' });
-    }
-    console.log('Borrowings found:', borrowings);
-    res.status(200).json({ success: true, data: borrowings });
+    sendResponse(res, 200, true, 'Borrowing history retrieved successfully', borrowings);
   } catch (error) {
     console.error('Error fetching borrowings:', error);
-    res.status(500).json({ success: false, message: error.message });
+    sendResponse(res, 500, false, error.message);
   }
 };
 
