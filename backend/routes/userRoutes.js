@@ -89,6 +89,7 @@ router.post('/create-account', upload.single('user_photo'), (req, res, next) => 
 
 router.get('/', auth, verifyRole('librarian'), userController.getUsers);
 router.get('/:user_id', auth, userController.getUserById);
+router.get('/:user_id2', auth, userController.getUserById2);
 router.post('/login', userController.log_in);
 router.post('/logout', auth, userController.log_out);
 router.delete('/:user_id', auth, verifyRole('librarian'), userController.deleteUser);
