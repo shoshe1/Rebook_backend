@@ -58,8 +58,11 @@ exports.updateUserPhoto = async (req, res) => {
       req.file.mimetype
     );
 
+    // Convert ObjectId to string
+    const fileIdString = fileId.toString();
+
     // Update user's photo ID in the database
-    const user = await User.findByIdAndUpdate(userId, { user_photo: fileId.toString() }, { new: true });
+    const user = await User.findByIdAndUpdate(userId, { user_photo: fileIdString }, { new: true });
 
     if (!user) {
       return sendResponse(res, 404, false, 'User not found');
@@ -71,38 +74,8 @@ exports.updateUserPhoto = async (req, res) => {
     sendResponse(res, 500, false, error.message);
   }
 };
-exports.uploadUserPhoto = async (req, res) => {
-  try {
-    console.log('Request file:', req.file); // Debugging statement
 
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    // Assuming the user is authenticated and their ID is available in req.user._id
-    const userId = req.user._id;
-
-    // Update the user's photo ID in the database
-    const user = await User.findByIdAndUpdate(userId, { user_photo: req.file.id }, { new: true });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.status(200).json({
-      message: 'Photo uploaded successfully',
-      user: {
-        user_id: user.user_id,
-        username: user.username,
-        user_photo: user.user_photo // Include user_photo ID in the response
-      },
-      imageUrl: `/api/users/photo/${user.user_photo}`
-    });
-  } catch (error) {
-    console.error('Error uploading user photo:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
+    
 exports.addUser = async (req, res) => {
   try {
     const { username, password, user_type } = req.body;
