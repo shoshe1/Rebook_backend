@@ -44,7 +44,7 @@ exports.getUserDetails = async (req, res) => {
   }
 };
 
- exports.updateUserPhoto = async (req, res) => {
+exports.updateUserPhoto = async (req, res) => {
   try {
     const userId = req.user._id; // Assuming the user is authenticated and their ID is available in req.user._id
 
@@ -59,11 +59,8 @@ exports.getUserDetails = async (req, res) => {
       req.file.mimetype
     );
 
-    // Convert ObjectId to string
-    const fileIdString = fileId.toString();
-
     // Update user's photo ID in the database
-    const user = await User.findByIdAndUpdate(userId, { user_photo: fileIdString }, { new: true });
+    const user = await User.findByIdAndUpdate(userId, { user_photo: fileId }, { new: true });
 
     if (!user) {
       return sendResponse(res, 404, false, 'User not found');
