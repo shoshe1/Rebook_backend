@@ -10,7 +10,6 @@ const cors = require('cors');
 // Get user photo by photo ID
 router.get('/photo/:id', userController.getUserPhoto);
 router.get('/:user_id2/details', auth, userController.getUserDetails);
-router.post('/upload-photo', auth, upload.single('user_photo'), userController.uploadUserPhoto);
 router.put('/update-photo', auth, upload.single('user_photo'), userController.updateUserPhoto);
 
 // Get user photo by user ID
