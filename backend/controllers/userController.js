@@ -112,6 +112,11 @@ exports.addUser = async (req, res) => {
         console.error('Error uploading file to GridFS:', uploadError);
         // Continue without photo if upload fails
       }
+    } else {
+      // Set default photo ID if no photo is uploaded
+      const defaultPhotoPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
+      const defaultPhotoId = await uploadToGridFS(defaultPhotoPath, 'no_img.jpeg', 'image/jpeg');
+      userData.user_photo = defaultPhotoId.toString();
     }
     
     const user = new User(userData);
@@ -133,7 +138,6 @@ exports.addUser = async (req, res) => {
     sendResponse(res, 500, false, error.message);
   }
 };
-
 exports.getUserPhoto = async (req, res) => {
   try {
     const fileId = req.params.id;
