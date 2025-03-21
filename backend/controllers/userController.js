@@ -6,6 +6,7 @@ const BookDonation = require('../models/BookDonation');
 const BookBorrowing = require('../models/BookBorrowing');
 const mongoose = require('mongoose');
 const { uploadToGridFS, getFileStream } = require('../middleware/gridfs-setup');
+const path = require('path');
 
 const sendResponse = (res, status, success, message, data = null) => {
   const response = { success, message };
