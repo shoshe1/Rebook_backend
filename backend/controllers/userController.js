@@ -44,35 +44,31 @@ exports.getUserDetails = async (req, res) => {
   }
 };
 
-exports.updateUserPhoto = async (req, res) => {
+ exports.updateUserPhoto = async (req, res) => {
   try {
     const userId = req.user._id; // Assuming the user is authenticated and their ID is available in req.user._id
-    
+
     if (!req.file) {
       return sendResponse(res, 400, false, 'No file uploaded');
     }
-    
+
     // Upload new photo to GridFS
     const fileId = await uploadToGridFS(
       req.file.path,
       req.file.originalname,
       req.file.mimetype
     );
-    
-    // Convert ObjectId to string since your schema expects a string
+
+    // Convert ObjectId to string
     const fileIdString = fileId.toString();
-    
+
     // Update user's photo ID in the database
-    const user = await User.findByIdAndUpdate(
-      userId, 
-      { user_photo: fileIdString }, // Use the string version since your schema expects a string
-      { new: true }
-    );
-    
+    const user = await User.findByIdAndUpdate(userId, { user_photo: fileIdString }, { new: true });
+
     if (!user) {
       return sendResponse(res, 404, false, 'User not found');
     }
-    
+
     sendResponse(res, 200, true, 'Photo updated successfully', { user });
   } catch (error) {
     console.error('Error updating user photo:', error);
