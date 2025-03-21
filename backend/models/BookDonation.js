@@ -9,6 +9,8 @@ const bookDonationSchema = new mongoose.Schema({
   donation_date: { type: Date, default: Date.now },
   book_condition: { type: String, enum: ['new', 'good', 'worn'], required: true },
   book_photo: { type: mongoose.Schema.Types.ObjectId }, // Changed to ObjectId for GridFS
+    publication_year: { type: Number, required: true }, // Ensure this field exists
+
   donation_status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending', required: true }
 });
 
