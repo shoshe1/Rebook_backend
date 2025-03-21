@@ -26,8 +26,8 @@ exports.getUserDetails = async (req, res) => {
 
     const userObjectId = user._id; // Get the ObjectId of the user
 
-    const borrowings = await Borrowing.find({ user_id: userObjectId });
-    const donations = await Donation.find({ user_id: userObjectId });
+    const borrowings = await BookBorrowing.find({ user_id: userObjectId });
+    const donations = await BookDonation.find({ user_id: userObjectId });
 
     res.status(200).json({
       success: true,
