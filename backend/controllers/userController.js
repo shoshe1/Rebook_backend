@@ -43,7 +43,34 @@ exports.getUserDetails = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.updateUserPhoto = async (req, res) => {
+  try {
+    const userId = req.user._id; // Assuming the user is authenticated and their ID is available in req.user._id
 
+    if (!req.file) {
+      return sendResponse(res, 400, false, 'No file uploaded');
+    }
+
+    // Upload new photo to GridFS
+    const fileId = await uploadToGridFS(
+      req.file.path,
+      req.file.originalname,
+      req.file.mimetype
+    );
+
+    // Update user's photo ID in the database
+    const user = await User.findByIdAndUpdate(userId, { user_photo: fileId.toString() }, { new: true });
+
+    if (!user) {
+      return sendResponse(res, 404, false, 'User not found');
+    }
+
+    sendResponse(res, 200, true, 'Photo updated successfully', { user });
+  } catch (error) {
+    console.error('Error updating user photo:', error);
+    sendResponse(res, 500, false, error.message);
+  }
+};
 exports.uploadUserPhoto = async (req, res) => {
   try {
     console.log('Request file:', req.file); // Debugging statement
