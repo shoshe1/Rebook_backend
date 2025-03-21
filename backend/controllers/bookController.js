@@ -264,11 +264,13 @@ exports.createBook = async (req, res) => {
     );
 
     let book = await Book.findOne({ title, author, category, publication_year });
-
+    const maxBookId = await Book.findOne().sort({ book_id: -1 }).select('book_id');
+    const nextBookId = maxBookId ? maxBookId.book_id + 1 : 1;
+  
     if (!book) {
       const totalBooks = await Book.countDocuments();
       book = new Book({
-        book_id: totalBooks + 1,
+        book_id: nextBookId,
         title,
         author,
         publication_year: Number(publication_year),
