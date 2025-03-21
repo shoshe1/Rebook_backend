@@ -7,6 +7,8 @@ const { uploadToGridFS, getBucket } = require('../middleware/gridfs-setup'); // 
 const { ObjectId } = mongoose.Types;
 const fs = require('fs');
 const path = require('path');
+const Notification = require('../models/notification'); // Ensure Notification model is imported
+const { error } = require('console');
 
 // Convert Buffer to base64 string
 const bufferToBase64 = (buffer, mimetype) => {
@@ -486,7 +488,7 @@ exports.acceptBorrowRequest = async (req, res) => {
     const { borrowing_id } = req.params;
 
     // Find the borrowing request
-    const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) });
+    const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) }).populate('book_id').populate('user_id'); // Populate user_id to get user details
     if (!borrowing) {
       return res.status(404).json({ error: 'Borrowing request not found' });
     }
@@ -496,9 +498,29 @@ exports.acceptBorrowRequest = async (req, res) => {
       return res.status(400).json({ error: 'Borrowing request is not pending' });
     }
 
+    // Get user_id (Number) from the User model
+    const user = await User.findById(borrowing.user_id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     // Update the borrowing status to 'borrowed'
     borrowing.borrowing_status = 'borrowed';
     await borrowing.save();
+
+    const notificationMessage = `Your borrow request for "${borrowing.book_id?.title}" has been accepted.`;
+    const newNotification = new Notification({
+      userId: user.user_id, // Use the numeric user_id instead of ObjectId
+      message: notificationMessage,
+      status: "waiting",
+      type:'borrow',
+      bookName:borrowing.book_id.title,
+      author:borrowing.book_id.author,
+      category:borrowing.book_id.category,
+      publishYear:borrowing.book_id.publication_year,
+      bookPhoto:borrowing.book_id.book_photo
+    });
+    await newNotification.save();
 
     res.status(200).json({ message: 'Borrowing request accepted successfully', borrowing });
   } catch (error) {
@@ -506,25 +528,59 @@ exports.acceptBorrowRequest = async (req, res) => {
   }
 };
 
+
 exports.rejectBorrowRequest = async (req, res) => {
   try {
     const { borrowing_id } = req.params;
 
-    // Find the borrowing request
-    const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) });
+    // Find the borrowing request and populate book_id and user_id
+    const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) })
+      .populate('user_id')
+      .populate('book_id'); // Populating book_id and user_id to get full details of the book and user
+
     if (!borrowing) {
       return res.status(404).json({ error: 'Borrowing request not found' });
     }
 
-    // Check if the borrowing request is already accepted
+    // Check if the borrowing request is already processed
     if (borrowing.borrowing_status !== 'pending') {
-      
       return res.status(400).json({ error: 'Borrowing request is not pending' });
+    }
+
+    // Get the user_id (Number) from the User model
+    const user = await User.findById(borrowing.user_id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
     // Update the borrowing status to 'rejected'
     borrowing.borrowing_status = 'rejected';
     await borrowing.save();
+
+    // Find the book using the book_id from the borrowing request
+    const book = await Book.findById(borrowing.book_id); // Using the ObjectId reference
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    // Increment the available copies by 1 since the request is rejected
+    book.available_copies += 1;
+    await book.save();
+
+    // Create a notification
+    const notificationMessage = `Your borrow request for "${borrowing.book_id.title}" has been rejected.`;
+    const newNotification = new Notification({
+      userId: user.user_id, 
+      message: notificationMessage,
+      status: "rejected",
+      type: 'borrow',
+      bookName: borrowing.book_id.title,
+      author: borrowing.book_id.author,
+      category: borrowing.book_id.category,
+      publishYear: borrowing.book_id.publication_year,
+      bookPhoto: borrowing.book_id.book_photo
+    });
+    await newNotification.save();
 
     res.status(200).json({ message: 'Borrowing request rejected successfully', borrowing });
   } catch (error) {
@@ -532,38 +588,81 @@ exports.rejectBorrowRequest = async (req, res) => {
   }
 };
 
+
+
 exports.returnBook = async (req, res) => {
   try {
-    const{borrowing_id}=req.params;
+    const { borrowing_id } = req.params;
     const return_date = new Date();
-    const borrowing = await BookBorrowing.findOne({ borrowing_id });
+
+    // Find the borrowing record
+    const borrowing = await BookBorrowing.findOne({ borrowing_id }).populate('user_id').populate('book_id');
+
     if (!borrowing) {
-      res.status(404).json({ error: 'Borrowing not found' });
-      return;
+      return res.status(404).json({ error: 'Borrowing record not found' });
     }
+
     if (borrowing.borrowing_status === 'returned') {
-      res.status(400).json({ error: 'Book is already returned' });
-      return;
+      return res.status(400).json({ error: 'Book is already returned' });
     }
+
+    // Extract user_id
+    const user_id = borrowing.user_id.user_id;  
+
+    console.log("Processing return for borrowing_id:", borrowing_id);
+    console.log("User ID extracted:", user_id);
+
+    // Find the user using `user_id` (not `_id`)
+    const user = await User.findOne({ user_id: user_id });
+
+    if (!user) {
+      console.error("User not found for ID:", borrowing.user_id);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log("User found:", user);
+
+    // Find the book
+    const book = await Book.findById(borrowing.book_id);
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    // Update borrowing record
     borrowing.return_date = return_date;
     borrowing.borrowing_status = 'returned';
     await borrowing.save();
-    const book = await Book.findOne({ _id: borrowing.book_id });
-    if (!book) {
-      res.status(404).json({ error: 'Book not found' });
-      return;
-    }
 
-    book.available_copies++;
-    await book.save();
-    res.status(200).json({ message: 'Book returned successfully', borrowing });
+    // Create notification
+    const notificationMessage = `You have returned the book "${book.title}". Please fill in the delivery information.`;
+
+    const newNotification = new Notification({
+      userId: user.user_id,  // ✅ Use `user_id` (not `_id`)
+      message: notificationMessage,
+      type: 'return',
+      bookName: book.title,
+      author: book.author,
+      category: book.category,
+      publishYear: book.publication_year,
+      bookPhoto: book.book_photo,
+      status: 'waiting',
+    });
+
+    await newNotification.save();
+
+    res.status(200).json({
+      message: 'Book returned successfully and notification created',
+      borrowing,
+      notification: newNotification,
+    });
+  } catch (error) {
+    console.error("Error in returnBook:", error);
+    res.status(500).json({ error: error.message });
   }
-
-    catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  
 };
+
+
+
 
 exports.getBorrowRequestDetails = async (req, res) => {
   try {
@@ -628,43 +727,53 @@ exports.getDonationById = async (req, res) => {
 // Create donation with GridFS
 exports.createDonation = async (req, res) => {
   try {
+    console.log('Request body:', req.body);
+    console.log('Uploaded file:', req.file); // Log the uploaded file
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "Book photo is required" });
+    }
+
     const { book_title, book_author, book_condition, category, publication_year } = req.body;
 
+    // Validate required fields
     if (!book_title || !book_author || !book_condition || !category || !publication_year) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ error: 'Book photo is required' });
+    // Upload file to GridFS
+    const fileId = await uploadToGridFS(req.file.path, req.file.originalname, req.file.mimetype);
+    console.log('GridFS file ID:', fileId); // Debugging check
+
+    if (!fileId) {
+      return res.status(500).json({ success: false, error: 'File upload failed' });
     }
 
-    // Store the GridFS file ID
-    const book_photo = req.file.id;
-
-    // Create new donation record without altering the books inventory
     const totalDonations = await BookDonation.countDocuments();
     const newDonation = new BookDonation({
       donation_id: totalDonations + 1,
-      user_id: req.user._id,
-      user_name: req.user.username,
+      user_id: req.user._id, // Ensure correct user ID
+      user_name: req.user.username, // Ensure correct username
       book_title,
       book_author,
       book_condition,
       category,
       publication_year: Number(publication_year),
-      book_photo,
+      book_photo: fileId.toString(),
       donation_status: 'pending',
       donation_date: new Date()
     });
 
+    // Save the donation to the database
     await newDonation.save();
 
     return res.status(201).json({
       success: true,
       message: 'Donation created successfully!',
       donation: newDonation,
-      imageUrl: `/api/books/photo/id/${book_photo}`
+      imageUrl: `/api/books/photo/id/${fileId}` // Fixed incorrect reference
     });
+
   } catch (error) {
     console.error('Error creating donation:', error);
     return res.status(500).json({
@@ -674,6 +783,8 @@ exports.createDonation = async (req, res) => {
     });
   }
 };
+
+
 
 exports.getAllDonations = async (req, res) => {
   try {
@@ -814,45 +925,107 @@ exports.getpendingdonationrequests = async (req, res) => {
 exports.acceptDonationRequest = async (req, res) => {
   try {
     const { donation_id } = req.params;
-    const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) });
+
+    // Find the donation request
+    const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) })
+      .populate('user_id'); 
+
     if (!donation) {
       return res.status(404).json({ error: 'Donation request not found' });
     }
+
     if (donation.donation_status !== 'pending') {
       return res.status(400).json({ error: 'Donation request is not pending' });
     }
+
+    const user = await User.findById(donation.user_id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    console.log("user:",user);
+    // Update donation status to 'accepted'
     donation.donation_status = 'accepted';
     await donation.save();
-    res.status(200).json({ message: 'Donation request accepted successfully', donation });
+
+    // Create a notification with the book details
+    const notificationMessage = `Your donation request for "${donation.book_title}" has been accepted.`;
+    const newNotification = new Notification({
+      userId: user.user_id, 
+      message: notificationMessage,
+      status: "waiting",
+      type: "donation",
+      bookName: donation.book_title, // Pass book details
+      author: donation.book_author,
+      category: donation.category,
+      publishYear: donation.publication_year,
+      bookPhoto: donation.book_photo
+    });
+    await newNotification.save();
+    console.log("Notification saved successfully");
+
+    res.status(200).json({ 
+      message: 'Donation request accepted and notification created successfully', 
+      donation,
+      notification: newNotification 
+    });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 exports.rejectdonationrequest = async (req, res) => {
   try {
     const { donation_id } = req.params;
 
-    // Find the donation request
-    const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) });
+    // Find the donation request and populate user_id
+    const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) })
+      .populate('user_id'); 
+
     if (!donation) {
       return res.status(404).json({ error: 'Donation request not found' });
     }
 
-    // Check if the donation request is already accepted
+    // Ensure the request is still pending
     if (donation.donation_status !== 'pending') {
       return res.status(400).json({ error: 'Donation request is not pending' });
     }
 
-    // Update the donation status to 'rejected'
+    // Get the user_id (Number) from the User model
+    const user = await User.findById(donation.user_id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update status to 'rejected'
     donation.donation_status = 'rejected';
     await donation.save();
 
-    res.status(200).json({ message: 'Donation request rejected successfully', donation });
+    // Send a notification to the customer
+    const notificationMessage = `Your donation request for "${donation.book_title}" has been rejected.`;
+    const newNotification = new Notification({
+      userId: user.user_id, // Use the numeric user_id instead of ObjectId
+      message: notificationMessage,
+      status: "rejected",
+      type:"donation",
+    });
+    await newNotification.save();
+
+    res.status(200).json({ 
+      message: 'Donation request rejected successfully', 
+      donation,
+      notification: newNotification 
+    });
+
   } catch (error) {
+    console.error('Error rejecting donation request:', error.message);
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 exports.addBook = async (req, res) => {
   try {
