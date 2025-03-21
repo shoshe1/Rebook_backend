@@ -58,8 +58,11 @@ exports.updateUserPhoto = async (req, res) => {
       req.file.mimetype
     );
 
+    // Convert ObjectId to string
+    const fileIdString = fileId.toString();
+
     // Update user's photo ID in the database
-    const user = await User.findByIdAndUpdate(userId, { user_photo: fileId.toString() }, { new: true });
+    const user = await User.findByIdAndUpdate(userId, { user_photo: fileIdString }, { new: true });
 
     if (!user) {
       return sendResponse(res, 404, false, 'User not found');
