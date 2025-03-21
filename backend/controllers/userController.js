@@ -13,6 +13,36 @@ const sendResponse = (res, status, success, message, data = null) => {
   return res.status(status).json(response);
 };
 
+exports.getUserDetails = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.user_id2, 10); // Convert user_id to a number
+    console.log('Fetching user details by ID:', userId);
+
+    const user = await User.findOne({ user_id: userId });
+    if (!user) {
+      console.log('User not found');
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const userObjectId = user._id; // Get the ObjectId of the user
+
+    const borrowings = await Borrowing.find({ user_id: userObjectId });
+    const donations = await Donation.find({ user_id: userObjectId });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+        borrowings,
+        donations
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.addUser = async (req, res) => {
   try {
     const { username, password, user_type } = req.body;
