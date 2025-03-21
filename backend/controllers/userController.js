@@ -200,8 +200,11 @@ exports.getUserPhotoByUserId = async (req, res) => {
       return sendResponse(res, 404, false, 'User photo not found');
     }
     
-    console.log('Redirecting to photo endpoint with ID:', user.user_photo);
-    res.redirect(`/api/users/photo/${user.user_photo}`);
+    // Convert ObjectId to string if necessary
+    const userPhotoId = user.user_photo.toString();
+    
+    console.log('Redirecting to photo endpoint with ID:', userPhotoId);
+    res.redirect(`/api/users/photo/${userPhotoId}`);
   } catch (error) {
     console.error('Error getting user photo by ID:', error);
     sendResponse(res, 500, false, error.message);
