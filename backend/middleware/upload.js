@@ -4,12 +4,10 @@ const crypto = require('crypto');
 const { GridFsStorage } = require('multer-gridfs-storage');
 const mongoose = require('mongoose');
 
-const useGridFS = process.env.USE_GRIDFS === 'true'; // Set to "true" in .env to enable GridFS
+const useGridFS = process.env.USE_GRIDFS === 'true'; 
 
-// Allowed image types
 const allowedTypes = /jpeg|jpg|png|gif/;
 
-// File filter function
 const fileFilter = (req, file, cb) => {
   const isExtValid = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const isMimeValid = allowedTypes.test(file.mimetype);
@@ -21,7 +19,6 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configure Multer Storage (GridFS or MemoryStorage)
 let storage;
 
 if (useGridFS) {
@@ -39,18 +36,15 @@ if (useGridFS) {
     }
   });
 } else {
-  // Memory storage (Can be replaced with DiskStorage for local saving)
   storage = multer.memoryStorage();
 }
 
-// Multer upload configuration
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }, 
   fileFilter
 });
 
-// Middleware to handle file uploads
 const handleFileUpload = (req, res, next) => {
   upload.single('file')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
