@@ -16,8 +16,8 @@ const auth = async (req, res, next) => {
 
      req.token = token;
     req.user = {
-      _id: user._id,           // MongoDB ID
-      user_id: user.user_id,   // Add the numeric user_id
+      _id: user._id,          
+      user_id: user.user_id,  
       username: user.username,
       user_type: user.user_type,
     };
