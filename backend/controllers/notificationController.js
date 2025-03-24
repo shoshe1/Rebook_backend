@@ -28,7 +28,6 @@ const createNotification = async (req, res) => {
 
 
 
-/*Fetch all notifications for a customer*/
 const fetchNotifications = async () => {
     try {
       console.log('Fetching notifications for customer ID:', customerId); 
@@ -63,7 +62,6 @@ const fetchNotifications = async () => {
           return res.status(400).json({ success: false, error: "Customer ID must be a valid number" });
       }
   
-      // Fetch notifications with "waiting" or "rejected" status
       const notifications = await Notification.find({ 
         userId: customerIdNumber, 
         status: { $in: ["waiting", "rejected"] } 
@@ -81,7 +79,6 @@ const fetchNotifications = async () => {
 
 
 
-/*Mark notification as read*/
 const markNotificationAsRead = async (req, res) => {
     const { notification_id } = req.params; 
 
@@ -105,7 +102,6 @@ const markNotificationAsRead = async (req, res) => {
 
 
 
-// Function to send overdue notifications
 const sendOverdueNotification = async (req, res) => {
   const { borrowing_id, customer_id } = req.body;
 
