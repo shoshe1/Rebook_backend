@@ -16,7 +16,7 @@ const sendResponse = (res, status, success, message, data = null) => {
 
 exports.getUserDetails = async (req, res) => {
   try {
-    const userId = parseInt(req.params.user_id2, 10); // Convert user_id to a number
+    const userId = parseInt(req.params.user_id2, 10); 
     console.log('Fetching user details by ID:', userId);
 
     const user = await User.findOne({ user_id: userId });
@@ -25,7 +25,7 @@ exports.getUserDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const userObjectId = user._id; // Get the ObjectId of the user
+    const userObjectId = user._id; 
 
     const borrowings = await BookBorrowing.find({ user_id: userObjectId });
     const donations = await BookDonation.find({ user_id: userObjectId });
@@ -46,20 +46,18 @@ exports.getUserDetails = async (req, res) => {
 
 exports.updateUserPhoto = async (req, res) => {
   try {
-    const userId = req.user._id; // Assuming the user is authenticated and their ID is available in req.user._id
+    const userId = req.user._id; 
 
     if (!req.file) {
       return sendResponse(res, 400, false, 'No file uploaded');
     }
 
-    // Upload new photo to GridFS
     const fileId = await uploadToGridFS(
       req.file.path,
       req.file.originalname,
       req.file.mimetype
     );
 
-    // Update user's photo ID in the database
     const user = await User.findByIdAndUpdate(userId, { user_photo: fileId }, { new: true });
 
     if (!user) {
@@ -86,7 +84,6 @@ exports.addUser = async (req, res) => {
     
     const hashedPassword = await bcrypt.hash(password, 8);
     
-    // Create user data object
     const userData = {
       user_id: await User.countDocuments() + 1,
       username,
@@ -95,10 +92,8 @@ exports.addUser = async (req, res) => {
       user_type
     };
     
-    // Process photo if uploaded
     if (req.file) {
       try {
-        // Upload file to GridFS
         const fileId = await uploadToGridFS(
           req.file.path,
           req.file.originalname,
@@ -107,10 +102,8 @@ exports.addUser = async (req, res) => {
         userData.user_photo = fileId.toString();
       } catch (uploadError) {
         console.error('Error uploading file to GridFS:', uploadError);
-        // Continue without photo if upload fails
       }
     } else {
-      // Set default photo ID if no photo is uploaded
       const defaultPhotoPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
       const defaultPhotoId = await uploadToGridFS(defaultPhotoPath, 'no_img.jpeg', 'image/jpeg');
       userData.user_photo = defaultPhotoId.toString();
@@ -125,7 +118,6 @@ exports.addUser = async (req, res) => {
       { expiresIn: '24h' }
     );
     
-    // Don't include password in response
     const userResponse = user.toObject();
     delete userResponse.password;
     
@@ -140,7 +132,6 @@ exports.getUserPhoto = async (req, res) => {
     const fileId = req.params.id;
     console.log('Attempting to get file with ID:', fileId);
     
-    // Convert string to ObjectId
     let objectId;
     try {
       objectId = new mongoose.Types.ObjectId(fileId);
@@ -149,29 +140,22 @@ exports.getUserPhoto = async (req, res) => {
       return sendResponse(res, 400, false, 'Invalid file ID format');
     }
     
-    // Get file stream from GridFS
     try {
       const fileStream = await getFileStream(objectId);
       
-      // Get file info to set proper content type
       const bucket = await mongoose.connection.db.collection('uploads.files').findOne({ _id: objectId });
       
-      // Set CORS headers here
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Cross-Origin-Resource-Policy', 'cross-origin');
       
-      // Set appropriate content type
       if (bucket && bucket.metadata && bucket.metadata.mimetype) {
         res.set('Content-Type', bucket.metadata.mimetype);
       } else {
-        // Default to jpeg if mimetype not found
         res.set('Content-Type', 'image/jpeg');
       }
       
-      // Important: don't send JSON response
       res.set('Content-Disposition', 'inline');
       
-      // Pipe the file stream directly to the response
       fileStream.pipe(res);
     } catch (streamError) {
       console.error('Error with file stream:', streamError);
@@ -188,7 +172,6 @@ exports.getUserPhotoByUserId = async (req, res) => {
     const userId = parseInt(req.params.user_id, 10);
     console.log('Looking for photo for user ID:', userId);
     
-    // Set CORS headers here too
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     
@@ -200,7 +183,6 @@ exports.getUserPhotoByUserId = async (req, res) => {
       return sendResponse(res, 404, false, 'User photo not found');
     }
     
-    // Convert ObjectId to string if necessary
     const userPhotoId = user.user_photo.toString();
     
     console.log('Redirecting to photo endpoint with ID:', userPhotoId);
@@ -211,26 +193,21 @@ exports.getUserPhotoByUserId = async (req, res) => {
   }
 };
 
-// ... rest of your controller methods
-// i dont know if i need to adjjst this
 exports.getUsers = async (req, res) => {
   try {
     if (!req.user) return sendResponse(res, 401, false, 'Unauthorized access');
 
     const users = await User.find({ user_type: 'customer' });
 
-    // Ensure the response is in JSON format
     res.setHeader('Content-Type', 'application/json');
     
     sendResponse(res, 200, true, 'Users retrieved successfully', users);
   } catch (error) {
-    // Ensure the error response is in JSON format
     res.setHeader('Content-Type', 'application/json');
     sendResponse(res, 500, false, error.message);
   }
 };
 
-// i dont know if i need to adjust this 
 exports.getUserById = async (req, res) => {
   try {
     console.log('Fetching user by ID:', req.params.user_id);
@@ -248,7 +225,7 @@ exports.getUserById = async (req, res) => {
 };
 exports.getUserById2 = async (req, res) => {
   try {
-    const userId = parseInt(req.params.user_id, 10); // Convert user_id to a number
+    const userId = parseInt(req.params.user_id, 10); 
     console.log('Fetching user by ID:', userId);
     const user = await User.findOne({ user_id: userId });
     if (!user) {
@@ -285,9 +262,9 @@ exports.log_in = async (req, res) => {
       message: 'Login successful',
       userType: user.user_type,
       username: user.username,
-      userId: user.user_id, // Add user ID
-      userPhotoId: user.user_photo, // Add user photo ID
-      userPhotoUrl: `/api/users/photo/${user.user_photo}`, // Add direct URL
+      userId: user.user_id,
+      userPhotoId: user.user_photo, 
+      userPhotoUrl: `/api/users/photo/${user.user_photo}`, 
       token,
       tokenExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     });
@@ -303,7 +280,6 @@ exports.log_out = async (req, res) => {
     sendResponse(res, 500, false, error.message);
   }
 };
-//maybe i need toadjus this
 exports.deleteUser = async (req, res) => {
   try {
     const deletedUser = await User.findOneAndDelete({ user_id: req.params.user_id });
@@ -313,11 +289,10 @@ exports.deleteUser = async (req, res) => {
     sendResponse(res, 500, false, error.message);
   }
 };
-// i dont know if i need to adjust this
 
 exports.user_borrowing_history = async (req, res) => {
   try {
-    const userId = mongoose.Types.ObjectId(req.params.user_id); // Convert user_id to ObjectId
+    const userId = mongoose.Types.ObjectId(req.params.user_id); 
     console.log('Fetching borrowings for user ID:', userId);
     const borrowings = await BookBorrowing.find({ user_id: userId });
     sendResponse(res, 200, true, 'Borrowing history retrieved successfully', borrowings);
@@ -344,29 +319,3 @@ exports.getCurrentUserId = async (req, res) => {
     sendResponse(res, 500, false, error.message);
   }
 };
-
-// exports.getCurrentUserId = async (req, res) => {
-//   try {
-//     // Check if user is authenticated
-//     if (!req.user) {
-//       return res.status(401).json({ error: 'Unauthorized access' });
-//     }
-    
-//     // If req.user already has user_id, return it directly
-//     if (req.user.user_id) {
-//       return res.status(200).json({ user_id: req.user.user_id });
-//     }
-    
-//     // Otherwise, fetch the user from the database
-//     const user = await User.findById(req.user._id);
-//     if (!user) {
-//       return res.status(404).json({ error: 'User not found' });
-//     }
-//     //
-//     // Return the user_id
-//     res.status(200).json({ user_id: user.user_id });
-//   } catch (error) {
-//     console.error('Error getting current user ID:', error);
-//     res.status(500).json({ error: error.message });
-//   }
-// };
