@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const Delivery = require('../models/delivery'); // Import the Delivery model
-const Notification = require('../models/notification');  // Add this line
+const Delivery = require('../models/delivery');
+const Notification = require('../models/notification');  
 const Book = require('../models/Book');  
 
-// Save delivery information
+
 router.post('/api/delivery', async (req, res) => {
-// Save delivery information
   try {
     const { name, userId, address, phoneNumber, preferredDate, latitude, longitude, notificationId } = req.body;
 
@@ -34,7 +33,6 @@ router.post('/api/delivery', async (req, res) => {
         type: type,  
     });
 
-    // Save the new delivery
     const savedDelivery = await newDelivery.save();
 
     res.status(201).json({ success: true, delivery: savedDelivery });
@@ -49,12 +47,10 @@ router.post('/api/delivery', async (req, res) => {
 
 
 
-// Fetch all deliveries for a user
 router.get('/api/delivery/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Fetch deliveries for the user
     const deliveries = await Delivery.find({ userId });
     res.status(200).json({ success: true, deliveries });
   } catch (error) {
@@ -63,7 +59,6 @@ router.get('/api/delivery/user/:userId', async (req, res) => {
   }
 });
 
-// Fetch details of a specific delivery
 router.get('/api/delivery/:deliveryId', async (req, res) => {
   try {
     const { deliveryId } = req.params;
@@ -84,7 +79,7 @@ router.get('/api/delivery/:deliveryId', async (req, res) => {
 // Confirm a delivery
 router.patch('/api/delivery/:deliveryId/confirm', async (req, res) => {
   try {
-      const { deliveryId } = req.params;  // ✅ Extract deliveryId correctly
+      const { deliveryId } = req.params;  
 
       // Confirm the delivery
       const delivery = await Delivery.findById(deliveryId);
@@ -139,9 +134,7 @@ router.patch('/api/delivery/:deliveryId/confirm', async (req, res) => {
         return res.status(404).json({ success: false, message: 'Book not found in library' });
       }
 
-      // Increment the available copies
-      // book.available_copies -= 1;
-      //await book.save();
+     
     }
     // Update the delivery status to 'delivered'
     delivery.status = 'delivered';
