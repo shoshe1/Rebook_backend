@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User'); // Add this import here
+const User = require('../models/User'); 
 const userController = require('../controllers/userController');
 const auth = require('../middleware/auth');
 const verifyRole = require('../middleware/verifyRole');
@@ -14,7 +14,6 @@ router.put('/update-photo', auth, upload.single('user_photo'), userController.up
 // Get user photo by user ID
 router.get('/photo-by-user-id/:user_id', userController.getUserPhotoByUserId);
 
-// Add this new route below your other photo routes
 router.get('/photo-url/:user_id', async (req, res) => {
   const { user_id } = req.params;
   try {
