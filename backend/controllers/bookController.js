@@ -3,19 +3,17 @@ const mongoose = require('mongoose');
 const BookBorrowing = require('../models/BookBorrowing');
 const User = require('../models/User');  // Fixed import
 const BookDonation = require('../models/BookDonation');
-const { uploadToGridFS, getBucket } = require('../middleware/gridfs-setup'); // Correctly import uploadToGridFS
+const { uploadToGridFS, getBucket } = require('../middleware/gridfs-setup');
 const { ObjectId } = mongoose.Types;
 const fs = require('fs');
 const path = require('path');
 const Notification = require('../models/notification'); // Ensure Notification model is imported
 const { error } = require('console');
 
-// Convert Buffer to base64 string
 const bufferToBase64 = (buffer, mimetype) => {
   return `data:${mimetype};base64,${buffer.toString('base64')}`;
 };
 
-// Convert file on disk to base64 string
 const fileToBase64 = (filePath, mimetype) => {
   try {
     const fileData = fs.readFileSync(filePath);
@@ -25,20 +23,16 @@ const fileToBase64 = (filePath, mimetype) => {
     return null;
   }
 };
-// bookController.js
 
-// Function to handle searching books by title or author
 exports.searchBooks = async (req, res) => {
   const { query } = req.query;
   console.log('Search query:', query);
 
 
   try {
-    // Convert `query` to a number if possible
     const queryNumber = !isNaN(query) ? Number(query) : null;
 
 
-    // Build the search conditions
     const searchConditions = [];
 
 
@@ -53,7 +47,6 @@ exports.searchBooks = async (req, res) => {
     }
 
 
-    // Perform search
     const books = await Book.find({ $or: searchConditions });
 
 
@@ -181,7 +174,7 @@ exports.searchManageRequests = async (req, res) => {
           const bookAuthor = request.book_id?.author?.toLowerCase() || '';
           const username = request.user_id?.username?.toLowerCase() || '';
           const borrowingId = request.borrowing_id ? String(request.borrowing_id) : '';
-          const dueDate = request.due_date ? request.due_date.toISOString().slice(0, 10) : ''; // Format the due_date as "YYYY-MM-DD"
+          const dueDate = request.due_date ? request.due_date.toISOString().slice(0, 10) : ''; 
 
 
           return (
@@ -189,7 +182,7 @@ exports.searchManageRequests = async (req, res) => {
               bookAuthor.includes(queryLower) ||  
               username.includes(queryLower) ||
               borrowingId.includes(query) ||
-              dueDate.includes(query) // Adding due date search logic
+              dueDate.includes(query) 
           );
       });
 
@@ -208,7 +201,6 @@ exports.uploadBookPhoto = (req, res) => {
     return res.status(400).send('No file uploaded.');
   }
 
-  // Convert the buffer to base64
   const base64Image = bufferToBase64(req.file.buffer, req.file.mimetype);
   res.send({ image_url: base64Image });
 };
@@ -240,7 +232,6 @@ exports.getBookById = async (req, res) => {
   }
 };
 
-// Create a book with GridFS for image storage
 exports.createBook = async (req, res) => {
   try {
     console.log('Request body:', req.body);
@@ -256,7 +247,6 @@ exports.createBook = async (req, res) => {
       return res.status(400).json({ error: 'Book photo is required' });
     }
 
-    // Upload file to GridFS
     const fileId = await uploadToGridFS(
       req.file.path,
       req.file.originalname,
@@ -307,13 +297,11 @@ exports.createBook = async (req, res) => {
   }
 };
 
-// Get book photo by filename
 exports.getBookPhoto = async (req, res) => {
   try {
     const fileId = req.params.id;
     console.log('Attempting to get book image with ID:', fileId);
     
-    // Convert string to ObjectId
     let objectId;
     try {
       objectId = new mongoose.Types.ObjectId(fileId);
@@ -322,13 +310,11 @@ exports.getBookPhoto = async (req, res) => {
       return res.status(400).json({ error: 'Invalid file ID format' });
     }
     
-    // Get bucket
     const bucket = getBucket();
     if (!bucket) {
       throw new Error('GridFS bucket not initialized');
     }
     
-    // First, get the file metadata to determine content type
     const db = mongoose.connection.db;
     const filesCollection = db.collection('uploads.files');
     const fileInfo = await filesCollection.findOne({ _id: objectId });
@@ -337,30 +323,23 @@ exports.getBookPhoto = async (req, res) => {
       return res.status(404).json({ error: 'File not found' });
     }
     
-    // Set proper Content-Type header
     if (fileInfo.metadata && fileInfo.metadata.mimetype) {
       res.set('Content-Type', fileInfo.metadata.mimetype);
     } else {
-      // Fallback to a generic image type
       res.set('Content-Type', 'image/jpeg');
     }
     
-    // Set other important headers
     res.set('Content-Disposition', 'inline');
-    res.set('Cache-Control', 'public, max-age=31557600'); // Cache for a year
+    res.set('Cache-Control', 'public, max-age=31557600'); 
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     
-    // Create a download stream
     const downloadStream = bucket.openDownloadStream(objectId);
     
-    // Handle errors
     downloadStream.on('error', (error) => {
       console.error('Error in download stream:', error);
-      // The response has already started, can't send an error response now
     });
     
-    // Pipe the file data to the response
     downloadStream.pipe(res);
     
   } catch (error) {
@@ -371,7 +350,6 @@ exports.getBookPhoto = async (req, res) => {
   }
 };
 
-// Get book photo by ID - with improved error handling and CORS
 exports.getBookPhotoByBookId = async (req, res) => {
   try {
     const bookId = parseInt(req.params.book_id, 10);
@@ -397,7 +375,6 @@ exports.deleteBook = async (req, res) => {
   try {
     const bookId = req.params.book_id;
 
-    // Check if bookId is a valid number
     if (isNaN(bookId)) {
       return res.status(400).json({ error: 'Invalid book ID' });
     }
@@ -417,7 +394,6 @@ exports.updateBook = async (req, res) => {
   try {
     const bookId = req.params.book_id;
 
-    // Check if bookId is a valid number
     if (isNaN(bookId)) {
       return res.status(400).json({ error: 'Invalid book ID' });
     }
@@ -437,19 +413,18 @@ exports.updateBook = async (req, res) => {
 exports.borrowBook = async (req, res) => {
   try {
     const { book_id, due_date } = req.body;
-    const user_id = req.user._id; // Get logged-in user's ID
+    const user_id = req.user._id; 
 
     if (!book_id || !due_date) {
       return res.status(400).json({ error: 'book_id and due_date are required fields' });
     }
 
-    const bookIdNumber = Number(book_id); // Convert book_id to Number
+    const bookIdNumber = Number(book_id); 
 
     if (isNaN(bookIdNumber)) {
       return res.status(400).json({ error: 'Invalid book_id. It must be a number.' });
     }
 
-    // Find book by book_id (the number, not MongoDB _id)
     const book = await Book.findOne({ book_id: bookIdNumber });
 
     if (!book) {
@@ -460,13 +435,11 @@ exports.borrowBook = async (req, res) => {
       return res.status(400).json({ error: 'Book is not available' });
     }
 
-    // Decrement available copies
     book.available_copies--;
     await book.save();
 
-    // Create borrowing record with book's MongoDB _id
     const borrowing = new BookBorrowing({
-      book_id: book._id, // Use the MongoDB _id from the book document
+      book_id: book._id, 
       user_id: new mongoose.Types.ObjectId(user_id),
       due_date: new Date(due_date),
       borrowing_status: 'pending',
@@ -489,30 +462,26 @@ exports.acceptBorrowRequest = async (req, res) => {
   try {
     const { borrowing_id } = req.params;
 
-    // Find the borrowing request
     const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) }).populate('book_id').populate('user_id'); // Populate user_id to get user details
     if (!borrowing) {
       return res.status(404).json({ error: 'Borrowing request not found' });
     }
 
-    // Check if the borrowing request is already accepted
     if (borrowing.borrowing_status !== 'pending') {
       return res.status(400).json({ error: 'Borrowing request is not pending' });
     }
 
-    // Get user_id (Number) from the User model
     const user = await User.findById(borrowing.user_id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Update the borrowing status to 'borrowed'
     borrowing.borrowing_status = 'borrowed';
     await borrowing.save();
 
     const notificationMessage = `Your borrow request for "${borrowing.book_id?.title}" has been accepted.`;
     const newNotification = new Notification({
-      userId: user.user_id, // Use the numeric user_id instead of ObjectId
+      userId: user.user_id, 
       message: notificationMessage,
       status: "waiting",
       type:'borrow',
@@ -535,41 +504,34 @@ exports.rejectBorrowRequest = async (req, res) => {
   try {
     const { borrowing_id } = req.params;
 
-    // Find the borrowing request and populate book_id and user_id
     const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) })
       .populate('user_id')
-      .populate('book_id'); // Populating book_id and user_id to get full details of the book and user
+      .populate('book_id'); 
 
     if (!borrowing) {
       return res.status(404).json({ error: 'Borrowing request not found' });
     }
 
-    // Check if the borrowing request is already processed
     if (borrowing.borrowing_status !== 'pending') {
       return res.status(400).json({ error: 'Borrowing request is not pending' });
     }
 
-    // Get the user_id (Number) from the User model
     const user = await User.findById(borrowing.user_id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Update the borrowing status to 'rejected'
     borrowing.borrowing_status = 'rejected';
     await borrowing.save();
 
-    // Find the book using the book_id from the borrowing request
-    const book = await Book.findById(borrowing.book_id); // Using the ObjectId reference
+    const book = await Book.findById(borrowing.book_id);
     if (!book) {
       return res.status(404).json({ error: 'Book not found' });
     }
 
-    // Increment the available copies by 1 since the request is rejected
     book.available_copies += 1;
     await book.save();
 
-    // Create a notification
     const notificationMessage = `Your borrow request for "${borrowing.book_id.title}" has been rejected.`;
     const newNotification = new Notification({
       userId: user.user_id, 
@@ -597,7 +559,6 @@ exports.returnBook = async (req, res) => {
     const { borrowing_id } = req.params;
     const return_date = new Date();
 
-    // Find the borrowing record
     const borrowing = await BookBorrowing.findOne({ borrowing_id }).populate('user_id').populate('book_id');
 
     if (!borrowing) {
@@ -608,13 +569,11 @@ exports.returnBook = async (req, res) => {
       return res.status(400).json({ error: 'Book is already returned' });
     }
 
-    // Extract user_id
     const user_id = borrowing.user_id.user_id;  
 
     console.log("Processing return for borrowing_id:", borrowing_id);
     console.log("User ID extracted:", user_id);
 
-    // Find the user using `user_id` (not `_id`)
     const user = await User.findOne({ user_id: user_id });
 
     if (!user) {
@@ -624,22 +583,19 @@ exports.returnBook = async (req, res) => {
 
     console.log("User found:", user);
 
-    // Find the book
     const book = await Book.findById(borrowing.book_id);
     if (!book) {
       return res.status(404).json({ error: 'Book not found' });
     }
 
-    // Update borrowing record
     borrowing.return_date = return_date;
     borrowing.borrowing_status = 'returned';
     await borrowing.save();
 
-    // Create notification
     const notificationMessage = `You have returned the book "${book.title}". Please fill in the delivery information.`;
 
     const newNotification = new Notification({
-      userId: user.user_id,  // ✅ Use `user_id` (not `_id`)
+      userId: user.user_id,  
       message: notificationMessage,
       type: 'return',
       bookName: book.title,
@@ -672,7 +628,7 @@ exports.getBorrowRequestDetails = async (req, res) => {
       
       const borrowing = await BookBorrowing.findOne({ borrowing_id: parseInt(borrowing_id, 10) })
           .populate('user_id', 'username user_type user_number')
-          .populate('book_id', 'title author book_photo available_copies total_copies'); // Include book_photo
+          .populate('book_id', 'title author book_photo available_copies total_copies'); 
 
       if (!borrowing) {
           return res.status(404).json({ error: 'Borrowing request not found' });
@@ -726,11 +682,10 @@ exports.getDonationById = async (req, res) => {
   }
 };
 
-// Create donation with GridFS
 exports.createDonation = async (req, res) => {
   try {
     console.log('Request body:', req.body);
-    console.log('Uploaded file:', req.file); // Log the uploaded file
+    console.log('Uploaded file:', req.file); 
 
     if (!req.file) {
       return res.status(400).json({ success: false, error: "Book photo is required" });
@@ -738,14 +693,12 @@ exports.createDonation = async (req, res) => {
 
     const { book_title, book_author, book_condition, category, publication_year } = req.body;
 
-    // Validate required fields
     if (!book_title || !book_author || !book_condition || !category || !publication_year) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Upload file to GridFS
     const fileId = await uploadToGridFS(req.file.path, req.file.originalname, req.file.mimetype);
-    console.log('GridFS file ID:', fileId); // Debugging check
+    console.log('GridFS file ID:', fileId); 
 
     if (!fileId) {
       return res.status(500).json({ success: false, error: 'File upload failed' });
@@ -754,8 +707,8 @@ exports.createDonation = async (req, res) => {
     const totalDonations = await BookDonation.countDocuments();
     const newDonation = new BookDonation({
       donation_id: totalDonations + 1,
-      user_id: req.user._id, // Ensure correct user ID
-      user_name: req.user.username, // Ensure correct username
+      user_id: req.user._id, 
+      user_name: req.user.username, 
       book_title,
       book_author,
       book_condition,
@@ -766,14 +719,13 @@ exports.createDonation = async (req, res) => {
       donation_date: new Date()
     });
 
-    // Save the donation to the database
     await newDonation.save();
 
     return res.status(201).json({
       success: true,
       message: 'Donation created successfully!',
       donation: newDonation,
-      imageUrl: `/api/books/photo/id/${fileId}` // Fixed incorrect reference
+      imageUrl: `/api/books/photo/id/${fileId}` 
     });
 
   } catch (error) {
@@ -819,7 +771,6 @@ exports.getTotalBooks = async (req, res) => {
   }
 };
 
-// Get image by book ID
 exports.getimagebyid = async (req, res) => {
   try {
     const bookId = parseInt(req.params.book_id, 10);
@@ -833,7 +784,6 @@ exports.getimagebyid = async (req, res) => {
       return res.status(404).json({ error: 'Book or image not found' });
     }
     
-    // Return a URL to the image endpoint
     res.status(200).json({
       imageUrl: `/api/books/photo/id/${book.book_photo}`
     });
@@ -845,7 +795,7 @@ exports.getimagebyid = async (req, res) => {
 
 exports.getAllReturnedBooksByUserId = async (req, res) => {
   try {
-    const userId = parseInt(req.params.user_id, 10); // Ensure user_id is a number
+    const userId = parseInt(req.params.user_id, 10); 
     if (isNaN(userId)) {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
@@ -864,7 +814,7 @@ exports.getAllReturnedBooksByUserId = async (req, res) => {
 
 exports.getUserBorrowedBooks = async (req, res) => {
   try {
-    const user_id = req.user._id; // Get the logged-in user's ID from the auth middleware
+    const user_id = req.user._id; 
     const borrowings = await BookBorrowing.find({ user_id })
       .populate('book_id', 'book_id title author publication_year category book_photo')
       .populate('user_id', 'user_id username');
@@ -876,7 +826,7 @@ exports.getUserBorrowedBooks = async (req, res) => {
 
 exports.getuserborrowingbookbyborrowingid = async (req, res) => {
   try {
-    const user_id = new mongoose.Types.ObjectId(req.user._id); // Correctly use the ObjectId constructor
+    const user_id = new mongoose.Types.ObjectId(req.user._id); 
     const { borrowing_id } = req.params;
 
     const borrowing = await BookBorrowing.findOne({ borrowing_id: borrowing_id, user_id })
@@ -913,11 +863,11 @@ exports.getpendingdonationrequests = async (req, res) => {
 
     console.log('Pending Donations Data:', JSON.stringify(pendingDonations, null, 2)); 
 
-    res.setHeader('Content-Type', 'application/json'); // ✅ Explicitly set JSON response type
+    res.setHeader('Content-Type', 'application/json');
     res.status(200).json({ success: true, data: pendingDonations });
   } catch (error) {
     console.error('Error fetching pending donation requests:', error);
-    res.setHeader('Content-Type', 'application/json'); // ✅ Ensure error response is also JSON
+    res.setHeader('Content-Type', 'application/json'); 
     res.status(500).json({ success: false, error: error.message || 'Failed to fetch pending donation requests' });
   }
 };
@@ -928,7 +878,6 @@ exports.acceptDonationRequest = async (req, res) => {
   try {
     const { donation_id } = req.params;
 
-    // Find the donation request
     const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) })
       .populate('user_id'); 
 
@@ -949,14 +898,13 @@ exports.acceptDonationRequest = async (req, res) => {
     donation.donation_status = 'accepted';
     await donation.save();
 
-    // Create a notification with the book details
     const notificationMessage = `Your donation request for "${donation.book_title}" has been accepted.`;
     const newNotification = new Notification({
       userId: user.user_id, 
       message: notificationMessage,
       status: "waiting",
       type: "donation",
-      bookName: donation.book_title, // Pass book details
+      bookName: donation.book_title, 
       author: donation.book_author,
       category: donation.category,
       publishYear: donation.publication_year,
@@ -982,7 +930,6 @@ exports.rejectdonationrequest = async (req, res) => {
   try {
     const { donation_id } = req.params;
 
-    // Find the donation request and populate user_id
     const donation = await BookDonation.findOne({ donation_id: parseInt(donation_id, 10) })
       .populate('user_id'); 
 
@@ -990,25 +937,21 @@ exports.rejectdonationrequest = async (req, res) => {
       return res.status(404).json({ error: 'Donation request not found' });
     }
 
-    // Ensure the request is still pending
     if (donation.donation_status !== 'pending') {
       return res.status(400).json({ error: 'Donation request is not pending' });
     }
 
-    // Get the user_id (Number) from the User model
     const user = await User.findById(donation.user_id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Update status to 'rejected'
     donation.donation_status = 'rejected';
     await donation.save();
 
-    // Send a notification to the customer
     const notificationMessage = `Your donation request for "${donation.book_title}" has been rejected.`;
     const newNotification = new Notification({
-      userId: user.user_id, // Use the numeric user_id instead of ObjectId
+      userId: user.user_id, 
       message: notificationMessage,
       status: "rejected",
       type:"donation",
@@ -1036,21 +979,17 @@ exports.addBook = async (req, res) => {
 
     const { book_id, title, author, category, publication_year, total_copies, available_copies } = req.body;
 
-    // Validate required fields
     if (!book_id || !title || !author || !category || !total_copies || !available_copies || !req.file) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Check if book already exists
     const existingBook = await Book.findOne({ book_id });
     if (existingBook) {
       return res.status(400).json({ error: 'Book ID already exists' });
     }
 
-    // Store the MongoDB ID of the uploaded file
     const book_photo = req.file.id;
 
-    // Create new book
     const book = new Book({
       book_id,
       title,
@@ -1083,13 +1022,12 @@ exports.addBook = async (req, res) => {
 };
 
 exports.uploadFile = (req, res) => {
-// DEBUG: List all files in the File collection
   const { upload } = require('../middleware/gridfs-setup');
   
   upload.single('file')(req, res, async (err) => {
     if (err) return res.status(500).json({ error: 'File upload failed', details: err.message });
 
-    console.log(req.file); // Debugging - check if req.file exists
+    console.log(req.file); 
 
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -1128,7 +1066,6 @@ exports.listAllFiles = async (req, res) => {
   }
 };
 
-// Improved proxy image function with better error handling
 exports.proxyImage = async (req, res) => {
   try {
     const id = req.query.id;
@@ -1140,14 +1077,12 @@ exports.proxyImage = async (req, res) => {
       return res.status(400).json({ error: 'Invalid ID format' });
     }
     
-    // Find the file by ID
     const File = mongoose.model('File');
     const file = await File.findById(id);
 
     if (!file) {
       console.log(`File not found in database for ID: ${id}`);
       
-      // Try to serve a default image
       const defaultPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
       if (fs.existsSync(defaultPath)) {
         console.log('Serving default image instead');
@@ -1162,14 +1097,11 @@ exports.proxyImage = async (req, res) => {
 
     console.log(`File found: ${file.filename} (${file.mimetype})`);
     
-    // Set CORS headers
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     
-    // Set the content type header
     res.set('Content-Type', file.mimetype || 'application/octet-stream');
     
-    // Create a read stream from the file path
     const filePath = path.join(__dirname, '..', 'uploads', file.filename);
     console.log(`Looking for file at: ${filePath}`);
     
@@ -1179,7 +1111,6 @@ exports.proxyImage = async (req, res) => {
     } else {
       console.log(`File missing from disk: ${filePath}`);
       
-      // Try to serve a default image
       const defaultPath = path.join(__dirname, '..', 'uploads', 'no_img.jpeg');
       if (fs.existsSync(defaultPath)) {
         console.log('Serving default image instead');
