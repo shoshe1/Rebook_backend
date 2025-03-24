@@ -6,7 +6,6 @@ const crypto = require('crypto');
 const fs = require('fs');
 require('dotenv').config();
 
-// Create temporary disk storage for multer
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const dir = './temp-uploads';
@@ -26,15 +25,13 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 } 
 });
 
-// Initialize bucket as null, will be set once MongoDB is connected
 let bucket = null;
 
-// Function to initialize GridFS bucket
 const initBucket = () => {
-  if (mongoose.connection.readyState === 1) { // Check if connected
+  if (mongoose.connection.readyState === 1) { 
     try {
       bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
         bucketName: 'uploads'
@@ -51,7 +48,6 @@ const initBucket = () => {
   }
 };
 
-// Function to get or initialize the bucket
 const getBucket = () => {
   if (!bucket && mongoose.connection.readyState === 1) {
     return initBucket();
@@ -59,7 +55,6 @@ const getBucket = () => {
   return bucket;
 };
 
-// Function to upload file to GridFS
 const uploadToGridFS = async (filePath, originalname, mimetype) => {
   return new Promise((resolve, reject) => {
     const currentBucket = getBucket();
@@ -82,7 +77,6 @@ const uploadToGridFS = async (filePath, originalname, mimetype) => {
     });
 
     uploadStream.on('finish', () => {
-      // Clean up temporary file
       fs.unlink(filePath, (err) => {
         if (err) console.error('Failed to delete temp file:', err);
       });
@@ -91,7 +85,6 @@ const uploadToGridFS = async (filePath, originalname, mimetype) => {
   });
 };
 
-// Function to get a file stream from GridFS
 const getFileStream = async (fileId) => {
   try {
     const currentBucket = getBucket();
@@ -100,16 +93,13 @@ const getFileStream = async (fileId) => {
       throw new Error('GridFS bucket not initialized');
     }
     
-    // Convert to ObjectId if it's a string
     const id = typeof fileId === 'string' ? new mongoose.Types.ObjectId(fileId) : fileId;
     
-    // Check if file exists
     const file = await mongoose.connection.db.collection('uploads.files').findOne({ _id: id });
     if (!file) {
       throw new Error(`File with ID ${fileId} not found`);
     }
     
-    // Open a download stream
     return currentBucket.openDownloadStream(id);
   } catch (error) {
     console.error('Error getting file stream:', error);
@@ -121,7 +111,7 @@ module.exports = {
   upload, 
   uploadToGridFS, 
   getFileStream,
-  getBucket,  // Make sure this is here
+  getBucket,  
   initBucket
 };
 
